@@ -98,8 +98,8 @@ class ClassEnrollment(Base):
     __table_args__ = (UniqueConstraint("class_id", "student_id", name="uq_class_student"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"))
-    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
+    class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
+    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     class_: Mapped["Class"] = relationship(back_populates="enrollments")
