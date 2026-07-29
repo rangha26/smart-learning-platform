@@ -113,7 +113,7 @@ docker exec -it smart_learning_db psql -U classroom -d classroom_db -c "\dt"
 
 ## 🔄 Quy trình Nâng cấp / Thay đổi Cấu trúc Database (Alembic)
 
-Nếu bạn thay đổi hoặc bổ sung thuộc tính trong [backend/app/models.py](file:///c:/Users/ADMIN/Desktop/TT/mock/smart-learning-platform/backend/app/models.py):
+Nếu bạn thay đổi hoặc bổ sung thuộc tính trong [backend/app/models.py](backend/app/models.py):
 
 1. **Tạo bản migration mới**:
    ```bash
