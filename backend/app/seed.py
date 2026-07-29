@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from app.db import SessionLocal, engine
+from app.db import SessionLocal
 from app.models import (
     User,
     UserRole,
