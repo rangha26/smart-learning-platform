@@ -44,10 +44,12 @@ class SubmissionState(str, enum.Enum):
 # ---------------------------------------------------------------------
 # 1. users
 # ---------------------------------------------------------------------
+from sqlalchemy import Integer
+
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
