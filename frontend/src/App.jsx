@@ -1,12 +1,22 @@
-import React from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
-export default function App() {
+import { AppLayout } from '@/layouts/AppLayout'
+import { CoursesPage } from '@/pages/CoursesPage'
+import { HomePage } from '@/pages/HomePage'
+import { StudentsPage } from '@/pages/StudentsPage'
+
+function App() {
   return (
-    <div style={{ padding: '4rem 2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h1 style={{ fontSize: '2.5rem', color: '#38bdf8' }}>Smart Learning Platform</h1>
-      <p style={{ fontSize: '1.2rem', color: '#94a3b8' }}>
-        React + Vite Frontend running successfully!
-      </p>
-    </div>
-  );
+    <BrowserRouter>
+      <AppLayout>
+        <Routes>
+          <Route element={<HomePage />} path="/" />
+          <Route element={<CoursesPage />} path="/courses" />
+          <Route element={<StudentsPage />} path="/students" />
+        </Routes>
+      </AppLayout>
+    </BrowserRouter>
+  )
 }
+
+export default App
