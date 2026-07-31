@@ -10,6 +10,8 @@ from app.schemas.auth import (
     TokenPayload,
     TokenResponse,
     UserResponse,
+    VerifyOTPRequest,
+    VerifyOTPResponse,
 )
 
 __all__ = [
@@ -18,6 +20,8 @@ __all__ = [
     "RefreshTokenRequest",
     "ChangePasswordRequest",
     "ForgotPasswordRequest",
+    "VerifyOTPRequest",
+    "VerifyOTPResponse",
     "ResetPasswordRequest",
     "UserResponse",
     "TokenResponse",

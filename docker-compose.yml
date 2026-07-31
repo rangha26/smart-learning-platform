@@ -1,26 +1,40 @@
-# version: '3.8'
-
 services:
-  #1. Database Service
+  # 1. Database Service (PostgreSQL)
   db:
     image: postgres:15-alpine
     container_name: smart_learning_db
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+      POSTGRES_DB: ${POSTGRES_DB:-classroom_db}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-smart_learning_db}"
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app_user} -d ${POSTGRES_DB:-classroom_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  #2. Backend Service (FastAPI)
+  # 2. Redis Cache Service (OTP & Token Caching)
+  redis:
+    image: redis:7-alpine
+    container_name: smart_learning_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --save 60 1 --loglevel notice
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # 3. Backend Service (FastAPI)
   backend:
     build: 
       context: ./backend
@@ -28,17 +42,20 @@ services:
     container_name: smart_learning_backend
     restart: always
     ports:
-     - "${BACKEND_PORT}:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      #- JWT_SECRET=your_super_secret_jwt_key
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-classroom_db}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  #3. Frontend Service (React + Vite)
+  # 4. Frontend Service (React + Vite)
   frontend:
     build: 
       context: ./frontend
@@ -46,14 +63,15 @@ services:
     container_name: smart_learning_frontend
     restart: always
     ports:
-      - "${FRONTEND_PORT}:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:${BACKEND_PORT}
+      - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}
     depends_on:
       - backend
 
 volumes:
   postgres_data:
+  redis_data:

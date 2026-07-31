@@ -5,15 +5,23 @@ Module này cung cấp các tiện ích bảo mật cốt lõi:
 1. Băm mật khẩu (Password Hashing) và xác thực mật khẩu (Password Verification) bằng thuật toán bcrypt.
 2. Tạo JWT Access Token (`create_access_token`) và JWT Refresh Token (`create_refresh_token`).
 3. Giải mã và kiểm tra tính hợp lệ của JWT Token (`decode_token`).
+4. Dependency `get_current_user` xác thực người dùng từ Bearer Token.
 """
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import bcrypt
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedException
+from app.db import get_db
+from app.models import User, UserStatus
+
+security_bearer = HTTPBearer(auto_error=False)
 
 
 # ==========================================
@@ -84,3 +92,43 @@ def decode_token(token: str) -> Dict[str, Any]:
         return payload
     except JWTError:
         raise UnauthorizedException("Token không hợp lệ hoặc đã hết hạn.")
+
+
+# ==========================================
+# 3. FASTAPI AUTHENTICATION DEPENDENCY
+# ==========================================
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    db: Session = Depends(get_db)
+) -> User:
+    """Dependency xác thực người dùng hiện tại từ Bearer Access Token"""
+    if not credentials or not credentials.credentials:
+        raise UnauthorizedException("Vui lòng cung cấp Authorization Bearer Token.")
+
+    token = credentials.credentials
+
+    # 1. Giải mã Token
+    payload = decode_token(token)
+
+    if payload.get("type") != "access":
+        raise UnauthorizedException("Loại Token không hợp lệ cho thao tác này (Cần Access Token).")
+
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise UnauthorizedException("Mã người dùng không hợp lệ trong Token.")
+
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
+        raise UnauthorizedException("User ID trong Token không đúng định dạng.")
+
+    # 2. Tìm User trong DB
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise UnauthorizedException("Tài khoản người dùng không tồn tại.")
+
+    if user.status != UserStatus.ACTIVE:
+        raise UnauthorizedException("Tài khoản của bạn đã bị khóa.")
+
+    return user

@@ -44,6 +44,8 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token hợp lệ", example="eyJhbGciOiJIUzI1NiIsIn...")
 
 
+
+
 class ChangePasswordRequest(BaseModel):
     """Schema cho API Đổi mật khẩu (/auth/change-password)"""
     old_password: str = Field(..., description="Mật khẩu hiện tại", example="OldPassword123!")
@@ -57,18 +59,24 @@ class ChangePasswordRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    """Schema cho API Yêu cầu quên mật khẩu (/auth/forgot-password)"""
-    email: EmailStr = Field(..., description="Email nhận link reset mật khẩu", example="student@example.com")
+    """Schema cho Bước 1: API Yêu cầu quên mật khẩu (/auth/forgot-password)"""
+    email: EmailStr = Field(..., description="Email người dùng cần lấy lại mật khẩu", example="student@example.com")
+
+
+class VerifyOTPRequest(BaseModel):
+    """Schema cho Bước 2: API Xác thực mã OTP (/auth/verify-otp)"""
+    email: EmailStr = Field(..., description="Email người dùng", example="student@example.com")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="Mã OTP 6 chữ số", example="123456")
 
 
 class ResetPasswordRequest(BaseModel):
-    """Schema cho API Đặt lại mật khẩu với token (/auth/reset-password)"""
-    token: str = Field(..., description="Reset token gửi qua email")
+    """Schema cho Bước 3: API Đặt lại mật khẩu với reset_session_token (/auth/reset-password)"""
+    reset_session_token: str = Field(..., description="Token phiên đặt lại mật khẩu ngẫu nhiên (UUID) nhận từ bước verify-otp", example="e4d9b3a123f44589a1b2c3d4e5f67890")
     new_password: str = Field(
         ...,
         min_length=8,
         max_length=100,
-        description="Mật khẩu mới",
+        description="Mật khẩu mới (tối thiểu 8 ký tự)",
         example="NewSecurePassword123!"
     )
 
@@ -95,7 +103,7 @@ class TokenResponse(BaseModel):
     access_token: str = Field(..., description="JWT Access Token dùng để xác thực các request tiếp theo")
     refresh_token: str = Field(..., description="JWT Refresh Token dùng để lấy Access Token mới")
     token_type: str = Field(default="bearer", description="Loại token (mặc định là bearer)")
-    expires_in: int = Field(..., description="Thời gian hết hạn của access_token tính theo giây", example=3600)
+    expires_in: int = Field(..., description="Thời gian hết hạn của access_token tính theo giây", example=1800)
 
 
 class AuthResponse(BaseModel):
@@ -109,6 +117,13 @@ class TokenPayload(BaseModel):
     sub: str = Field(..., description="Subject của token (thường là User ID)")
     role: UserRole = Field(..., description="Vai trò của user")
     exp: Optional[int] = Field(default=None, description="Expiration UNIX timestamp")
+
+
+class VerifyOTPResponse(BaseModel):
+    """Schema trả về sau khi xác thực OTP thành công, bao gồm reset_session_token"""
+    reset_session_token: str = Field(..., description="Reset Session Token (UUID) dùng cho API /auth/reset-password")
+    message: str = Field(default="Mã OTP hợp lệ. Vui lòng nhập mật khẩu mới.", description="Thông báo phản hồi")
+    success: bool = Field(default=True, description="Trạng thái thao tác")
 
 
 class MessageResponse(BaseModel):
