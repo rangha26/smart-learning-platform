@@ -1,20 +1,95 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
-import { AppLayout } from '@/layouts/AppLayout'
-import { CoursesPage } from '@/pages/CoursesPage'
-import { HomePage } from '@/pages/HomePage'
-import { StudentsPage } from '@/pages/StudentsPage'
+import { ProtectedRoute, getRoleHomePath } from '@/components/auth/ProtectedRoute'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+
+// Layouts
+import { AdminLayout } from '@/layouts/AdminLayout'
+import { StudentLayout } from '@/layouts/StudentLayout'
+import { TeacherLayout } from '@/layouts/TeacherLayout'
+
+// Admin Pages
+import { AdminCourseManagementPage } from '@/pages/admin/CourseManagement'
+import { AdminDashboardPage } from '@/pages/admin/Dashboard'
+import { AdminReportsPage } from '@/pages/admin/Reports'
+import { AdminUserManagementPage } from '@/pages/admin/UserManagement'
+
+// Teacher Pages
+import { TeacherAssignmentsPage } from '@/pages/teacher/Assignments'
+import { TeacherDashboardPage } from '@/pages/teacher/Dashboard'
+import { TeacherMyCoursesPage } from '@/pages/teacher/MyCourses'
+import { TeacherStudentsPage } from '@/pages/teacher/Students'
+
+// Student Pages
+import { StudentCertificatesPage } from '@/pages/student/Certificates'
+import { StudentHomePage } from '@/pages/student/Home'
+import { StudentLearningPage } from '@/pages/student/Learning'
+import { StudentProfilePage } from '@/pages/student/Profile'
+
+// Auth Pages
+import { LoginPage } from '@/pages/auth/Login'
+import { RegisterPage } from '@/pages/auth/Register'
+
+function RootRedirect() {
+  const { user, isAuthenticated } = useAuth()
+  if (!isAuthenticated || !user) {
+    return <Navigate replace to="/login" />
+  }
+  return <Navigate replace to={getRoleHomePath(user.role)} />
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Root redirect based on auth & role */}
+      <Route element={<RootRedirect />} path="/" />
+
+      {/* Auth Public Routes */}
+      <Route element={<LoginPage />} path="/login" />
+      <Route element={<RegisterPage />} path="/register" />
+
+      {/* Admin Role Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+        <Route element={<AdminLayout />}>
+          <Route element={<AdminDashboardPage />} path="/admin" />
+          <Route element={<AdminUserManagementPage />} path="/admin/users" />
+          <Route element={<AdminCourseManagementPage />} path="/admin/courses" />
+          <Route element={<AdminReportsPage />} path="/admin/reports" />
+        </Route>
+      </Route>
+
+      {/* Teacher / Instructor Role Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['INSTRUCTOR', 'TEACHER']} />}>
+        <Route element={<TeacherLayout />}>
+          <Route element={<TeacherDashboardPage />} path="/teacher" />
+          <Route element={<TeacherMyCoursesPage />} path="/teacher/courses" />
+          <Route element={<TeacherAssignmentsPage />} path="/teacher/assignments" />
+          <Route element={<TeacherStudentsPage />} path="/teacher/students" />
+        </Route>
+      </Route>
+
+      {/* Student Role Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['STUDENT']} />}>
+        <Route element={<StudentLayout />}>
+          <Route element={<StudentHomePage />} path="/student" />
+          <Route element={<StudentLearningPage />} path="/student/learning" />
+          <Route element={<StudentCertificatesPage />} path="/student/certificates" />
+          <Route element={<StudentProfilePage />} path="/student/profile" />
+        </Route>
+      </Route>
+
+      {/* Fallback Catch-all Route */}
+      <Route element={<Navigate replace to="/" />} path="*" />
+    </Routes>
+  )
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <AppLayout>
-        <Routes>
-          <Route element={<HomePage />} path="/" />
-          <Route element={<CoursesPage />} path="/courses" />
-          <Route element={<StudentsPage />} path="/students" />
-        </Routes>
-      </AppLayout>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   )
 }

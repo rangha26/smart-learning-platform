@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+const rawApiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const baseURL = rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl.replace(/\/+$/, '')}/api/v1`
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000',
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -23,6 +26,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('user')
     }
 
     return Promise.reject(error)

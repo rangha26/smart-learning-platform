@@ -6,11 +6,11 @@ const students = [
   { name: 'Sora Kim', progress: '86% complete' },
 ]
 
-export function StudentsPage() {
+export function AdminUserManagementPage() {
   return (
     <section className="space-y-4">
       <div>
-        <p className="text-sm font-medium text-muted-foreground">Student progress</p>
+        <p className="text-sm font-medium text-muted-foreground">User management</p>
         <h2 className="text-2xl font-semibold tracking-normal">Students</h2>
       </div>
 

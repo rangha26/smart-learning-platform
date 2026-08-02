@@ -9,7 +9,7 @@ const stats = [
   { label: 'AI suggestions', value: '84', icon: Sparkles },
 ]
 
-export function HomePage() {
+export function AdminDashboardPage() {
   return (
     <>
       <header className="flex flex-col justify-between gap-4 border-b pb-6 sm:flex-row sm:items-end">
