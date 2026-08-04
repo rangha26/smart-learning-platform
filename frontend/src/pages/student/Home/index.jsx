@@ -1,6 +1,10 @@
-import { BookOpenCheck, CalendarDays, Clock3, TrendingUp } from 'lucide-react'
+import { useState } from 'react'
+import { BookOpenCheck, CalendarDays, Clock3, TrendingUp, UserPlus, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { JoinClassModal } from '@/components/classes'
+import { useNavigate } from 'react-router-dom'
 
-const enrolledCourses = [
+const defaultCourses = [
   { title: 'React Fundamentals', progress: '72%', nextLesson: 'Hooks and state' },
   { title: 'UI Systems', progress: '48%', nextLesson: 'Design tokens' },
 ]
@@ -11,14 +15,39 @@ const upcomingTasks = [
 ]
 
 export function StudentHomePage() {
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
+  const [courses, setCourses] = useState(defaultCourses)
+  const navigate = useNavigate()
+
+  const handleClassJoined = (newClass) => {
+    setCourses((prev) => [
+      {
+        title: newClass.title,
+        progress: '0%',
+        nextLesson: newClass.subject ? `Chủ đề: ${newClass.subject}` : 'Bài học đầu tiên',
+      },
+      ...prev,
+    ])
+  }
+
   return (
     <section className="space-y-6">
-      <header className="rounded-2xl border bg-card p-6 shadow-sm">
-        <p className="text-sm font-medium text-muted-foreground">Student home</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-normal">Welcome back, Minh</h2>
-        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-          Your learning dashboard is ready with your active courses, upcoming sessions, and progress highlights.
-        </p>
+      <header className="rounded-2xl border bg-card p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">Student home</p>
+          <h2 className="mt-1 text-3xl font-semibold tracking-normal">Welcome back, Learner</h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Your learning dashboard is ready with your active courses, upcoming sessions, and progress highlights.
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsJoinModalOpen(true)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md shadow-emerald-600/20 shrink-0"
+        >
+          <UserPlus className="mr-2 size-4" />
+          Tham gia lớp mới
+        </Button>
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -27,7 +56,7 @@ export function StudentHomePage() {
             <BookOpenCheck className="size-4" aria-hidden="true" />
             <span className="text-sm">Enrolled courses</span>
           </div>
-          <p className="mt-4 text-3xl font-semibold">3</p>
+          <p className="mt-4 text-3xl font-semibold">{courses.length}</p>
         </article>
         <article className="rounded-2xl border bg-card p-5">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -49,21 +78,37 @@ export function StudentHomePage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold">My courses</h3>
-            <span className="text-sm text-muted-foreground">Updated today</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsJoinModalOpen(true)}
+              className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+            >
+              + Tham gia bằng mã
+            </Button>
           </div>
 
-          {enrolledCourses.map((course) => (
-            <article className="rounded-2xl border bg-card p-4" key={course.title}>
+          {courses.map((course) => (
+            <article className="rounded-2xl border bg-card p-4 transition-all hover:border-emerald-200 hover:shadow-xs" key={course.title}>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-medium">{course.title}</p>
+                  <p className="font-semibold text-foreground">{course.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">Next: {course.nextLesson}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold">{course.progress}</p>
+                  <p className="text-sm font-semibold text-emerald-700">{course.progress}</p>
                   <p className="text-xs text-muted-foreground">completed</p>
                 </div>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/student/class/1')}
+                className="mt-3 w-full text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1.5"
+              >
+                Vào lớp
+                <ArrowRight className="size-3.5" />
+              </Button>
             </article>
           ))}
         </div>
@@ -87,6 +132,12 @@ export function StudentHomePage() {
           ))}
         </div>
       </div>
+
+      <JoinClassModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+        onSuccess={handleClassJoined}
+      />
     </section>
   )
 }

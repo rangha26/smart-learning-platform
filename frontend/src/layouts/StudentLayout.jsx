@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Award,
   BookOpen,
@@ -6,9 +7,11 @@ import {
   Home,
   LogOut,
   User,
+  UserPlus,
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { JoinClassModal } from '@/components/classes'
 import { useAuth } from '@/context/AuthContext'
 
 const studentNavItems = [
@@ -21,10 +24,15 @@ const studentNavItems = [
 export function StudentLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleClassJoined = (joinedClass) => {
+    window.dispatchEvent(new CustomEvent('class_updated', { detail: joinedClass }))
   }
 
   return (
@@ -68,6 +76,14 @@ export function StudentLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setIsJoinModalOpen(true)}
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+            >
+              <UserPlus className="mr-1.5 size-4" />
+              Tham gia lớp
+            </Button>
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-sm font-semibold text-foreground">{user?.full_name || 'Learner'}</span>
               <span className="text-xs text-muted-foreground">{user?.email}</span>
@@ -106,6 +122,13 @@ export function StudentLayout() {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-6 py-8">
         <Outlet />
       </main>
+
+      {/* Modal tham gia lớp */}
+      <JoinClassModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+        onSuccess={handleClassJoined}
+      />
     </div>
   )
 }
