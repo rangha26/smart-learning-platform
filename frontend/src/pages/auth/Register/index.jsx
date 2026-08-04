@@ -1,6 +1,17 @@
-import { Eye, EyeOff, GraduationCap, Lock, Mail, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  BookOpenCheck,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  Info,
+  Lock,
+  Mail,
+  Sparkles,
+  UserRound,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { getRoleHomePath } from '@/components/auth/ProtectedRoute'
@@ -11,7 +22,7 @@ const initialValues = {
   email: '',
   password: '',
   confirmPassword: '',
-  role: 'student',
+  role: 'student', // Chỉ cho phép 'student' hoặc 'teacher'
   agreeTerms: false,
 }
 
@@ -19,29 +30,29 @@ function validate(values) {
   const nextErrors = {}
 
   if (!values.fullName.trim()) {
-    nextErrors.fullName = 'Please enter your full name.'
+    nextErrors.fullName = 'Vui lòng nhập họ và tên của bạn.'
   }
 
   if (!values.email.trim()) {
-    nextErrors.email = 'Please enter your email address.'
+    nextErrors.email = 'Vui lòng nhập địa chỉ email.'
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-    nextErrors.email = 'Please enter a valid email address.'
+    nextErrors.email = 'Định dạng email không hợp lệ.'
   }
 
   if (!values.password) {
-    nextErrors.password = 'Please create a password.'
+    nextErrors.password = 'Vui lòng tạo mật khẩu.'
   } else if (values.password.length < 8) {
-    nextErrors.password = 'Password must be at least 8 characters.'
+    nextErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự.'
   }
 
   if (!values.confirmPassword) {
-    nextErrors.confirmPassword = 'Please confirm your password.'
+    nextErrors.confirmPassword = 'Vui lòng xác nhận lại mật khẩu.'
   } else if (values.confirmPassword !== values.password) {
-    nextErrors.confirmPassword = 'Passwords do not match.'
+    nextErrors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp.'
   }
 
   if (!values.agreeTerms) {
-    nextErrors.agreeTerms = 'You must accept the terms to continue.'
+    nextErrors.agreeTerms = 'Bạn cần đồng ý với Điều khoản dịch vụ để đăng ký.'
   }
 
   return nextErrors
@@ -57,17 +68,19 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState('')
 
-  const handleChange = (event) => {
-    const { name, type, value, checked } = event.target
-    const nextValue = type === 'checkbox' ? checked : value
-
-    setFormValues((current) => ({ ...current, [name]: nextValue }))
+  const handleChange = (name, value) => {
+    setFormValues((current) => ({ ...current, [name]: value }))
     if (errors[name]) {
       setErrors((current) => ({ ...current, [name]: undefined }))
     }
     if (apiError) {
       setApiError('')
     }
+  }
+
+  const handleInputChange = (e) => {
+    const { name, type, value, checked } = e.target
+    handleChange(name, type === 'checkbox' ? checked : value)
   }
 
   const handleSubmit = async (event) => {
@@ -83,9 +96,9 @@ export function RegisterPage() {
     setIsLoading(true)
     try {
       const res = await register({
-        email: formValues.email,
+        email: formValues.email.trim(),
         password: formValues.password,
-        fullName: formValues.fullName,
+        fullName: formValues.fullName.trim(),
         role: formValues.role,
       })
       const targetPath = getRoleHomePath(res?.user?.role)
@@ -94,7 +107,7 @@ export function RegisterPage() {
       const msg =
         err.response?.data?.detail ||
         err.response?.data?.message ||
-        'Đăng ký thất bại. Vui lòng kiểm tra thông tin và thử lại.'
+        'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin và thử lại.'
       setApiError(typeof msg === 'string' ? msg : 'Đăng ký thất bại.')
     } finally {
       setIsLoading(false)
@@ -104,165 +117,237 @@ export function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_45%),linear-gradient(135deg,_#f8fbff_0%,_#eef4ff_100%)] px-4 py-10">
       <div className="w-full max-w-5xl overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="bg-primary p-8 text-primary-foreground sm:p-10">
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl bg-white/15">
-                <GraduationCap className="size-5" aria-hidden="true" />
+        <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
+          {/* Left Visual Banner */}
+          <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 p-8 text-white sm:p-10 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-xs">
+                  <GraduationCap className="size-6 text-white" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-200">
+                    Smart Learning Platform
+                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-white">Tạo tài khoản mới</h1>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-primary-foreground/80">New community</p>
-                <h1 className="text-2xl font-semibold">Create your teaching account</h1>
+
+              <div className="mt-8 space-y-4 text-sm text-blue-50/90">
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
+                  <p className="font-semibold text-white flex items-center gap-2">
+                    <Sparkles className="size-4 text-blue-200" />
+                    Không gian học tập tích hợp
+                  </p>
+                  <p className="mt-1.5 text-xs text-blue-100/90 leading-relaxed">
+                    Tham gia các lớp học trực tuyến, nộp bài tập đúng hạn và theo dõi lộ trình học tập bài bản.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
+                  <p className="font-semibold text-white flex items-center gap-2">
+                    <BookOpenCheck className="size-4 text-blue-200" />
+                    Dành cho Giáo viên & Học viên
+                  </p>
+                  <p className="mt-1.5 text-xs text-blue-100/90 leading-relaxed">
+                    Dễ dàng tạo lớp, quản lý sinh viên hoặc gia nhập lớp học chỉ với 1 mã tham gia ngẫu nhiên.
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-8 space-y-4 text-sm text-primary-foreground/90">
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-                <p className="font-medium">Why join?</p>
-                <p className="mt-2 text-primary-foreground/80">Track courses, manage lessons, and keep your learners moving forward.</p>
-              </div>
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-                <p className="font-medium">Fast onboarding</p>
-                <p className="mt-2 text-primary-foreground/80">Set up your profile in minutes and start organizing classes right away.</p>
-              </div>
+            <div className="mt-8 pt-4 border-t border-blue-400/30 text-xs text-blue-200">
+              Đã có tài khoản?{' '}
+              <Link to="/login" className="font-bold text-white underline hover:text-blue-100">
+                Đăng nhập ngay
+              </Link>
             </div>
           </div>
 
-          <div className="p-8 sm:p-10">
+          {/* Right Form Area */}
+          <div className="p-8 sm:p-10 flex flex-col justify-center">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Register</p>
-                <h2 className="text-2xl font-semibold tracking-normal">Sign up</h2>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Đăng ký</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Bắt đầu học tập</h2>
               </div>
-              <Link className="text-sm font-medium text-primary hover:underline" to="/login">
-                I already have an account
-              </Link>
             </div>
 
-            {apiError ? (
-              <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                <p className="font-semibold">Đăng ký không thành công</p>
-                <p className="mt-1">{apiError}</p>
+            {apiError && (
+              <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-medium text-destructive">
+                {apiError}
               </div>
-            ) : null}
+            )}
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Full name</span>
-                  <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                    <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <input
-                      className="w-full bg-transparent outline-none"
-                      disabled={isLoading}
-                      name="fullName"
-                      onChange={handleChange}
-                      placeholder="Nguyen Van A"
-                      type="text"
-                      value={formValues.fullName}
-                    />
-                  </div>
-                  {errors.fullName ? <p className="text-sm font-normal text-destructive">{errors.fullName}</p> : null}
+              {/* Lựa chọn vai trò (Chỉ Học viên & Giáo viên - KHÔNG có Admin) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80 flex items-center justify-between">
+                  <span>Bạn tham gia với vai trò <span className="text-destructive">*</span></span>
                 </label>
 
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Role</span>
-                  <select
-                    className="w-full rounded-lg border bg-background px-3 py-2 outline-none"
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
                     disabled={isLoading}
-                    name="role"
-                    onChange={handleChange}
-                    value={formValues.role}
+                    onClick={() => handleChange('role', 'student')}
+                    className={`flex items-center gap-3 rounded-2xl border-2 p-3.5 text-left transition-all ${
+                      formValues.role === 'student'
+                        ? 'border-blue-600 bg-blue-50/60 font-semibold text-blue-950 shadow-xs'
+                        : 'border-border/70 bg-background text-muted-foreground hover:bg-muted/40'
+                    }`}
                   >
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </label>
+                    <div className={`flex size-9 items-center justify-center rounded-xl ${
+                      formValues.role === 'student' ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      <GraduationCap className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-tight">Học viên</p>
+                      <p className="text-[11px] font-normal text-muted-foreground">Tham gia lớp & làm bài</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => handleChange('role', 'teacher')}
+                    className={`flex items-center gap-3 rounded-2xl border-2 p-3.5 text-left transition-all ${
+                      formValues.role === 'teacher'
+                        ? 'border-indigo-600 bg-indigo-50/60 font-semibold text-indigo-950 shadow-xs'
+                        : 'border-border/70 bg-background text-muted-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className={`flex size-9 items-center justify-center rounded-xl ${
+                      formValues.role === 'teacher' ? 'bg-indigo-600 text-white' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      <BookOpenCheck className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-tight">Giảng viên</p>
+                      <p className="text-[11px] font-normal text-muted-foreground">Tạo lớp & giảng dạy</p>
+                    </div>
+                  </button>
+                </div>
               </div>
 
-              <label className="space-y-2 text-sm font-medium text-foreground">
-                <span>Email address</span>
-                <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                  <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
+              {/* Họ và tên */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                  Họ và tên <span className="text-destructive">*</span>
+                </label>
+                <div className="flex items-center gap-2.5 rounded-xl border bg-background px-3.5 py-2.5 transition-all focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <UserRound className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
                   <input
-                    className="w-full bg-transparent outline-none"
+                    className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/60"
+                    disabled={isLoading}
+                    name="fullName"
+                    onChange={handleInputChange}
+                    placeholder="VD: Nguyễn Văn A"
+                    type="text"
+                    value={formValues.fullName}
+                  />
+                </div>
+                {errors.fullName && <p className="text-xs font-medium text-destructive">{errors.fullName}</p>}
+              </div>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                  Địa chỉ Email <span className="text-destructive">*</span>
+                </label>
+                <div className="flex items-center gap-2.5 rounded-xl border bg-background px-3.5 py-2.5 transition-all focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <Mail className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                  <input
+                    className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/60"
                     disabled={isLoading}
                     name="email"
-                    onChange={handleChange}
-                    placeholder="teacher@example.com"
+                    onChange={handleInputChange}
+                    placeholder="you@example.com"
                     type="email"
                     value={formValues.email}
                   />
                 </div>
-                {errors.email ? <p className="text-sm font-normal text-destructive">{errors.email}</p> : null}
-              </label>
+                {errors.email && <p className="text-xs font-medium text-destructive">{errors.email}</p>}
+              </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Password</span>
-                  <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                    <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
+              {/* Grid Mật khẩu & Xác nhận */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                    Mật khẩu <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 rounded-xl border bg-background px-3.5 py-2.5 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                    <Lock className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
                     <input
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/60"
                       disabled={isLoading}
                       name="password"
-                      onChange={handleChange}
-                      placeholder="At least 8 characters"
+                      onChange={handleInputChange}
+                      placeholder="Ít nhất 8 ký tự"
                       type={showPassword ? 'text' : 'password'}
                       value={formValues.password}
                     />
                     <button
-                      className="text-muted-foreground"
-                      onClick={() => setShowPassword((current) => !current)}
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPassword((c) => !c)}
                       type="button"
                     >
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
-                  {errors.password ? <p className="text-sm font-normal text-destructive">{errors.password}</p> : null}
-                </label>
+                  {errors.password && <p className="text-xs font-medium text-destructive">{errors.password}</p>}
+                </div>
 
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Confirm password</span>
-                  <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                    <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                    Xác nhận mật khẩu <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 rounded-xl border bg-background px-3.5 py-2.5 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                    <Lock className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
                     <input
-                      className="w-full bg-transparent outline-none"
+                      className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/60"
                       disabled={isLoading}
                       name="confirmPassword"
-                      onChange={handleChange}
-                      placeholder="Repeat password"
+                      onChange={handleInputChange}
+                      placeholder="Nhập lại mật khẩu"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={formValues.confirmPassword}
                     />
                     <button
-                      className="text-muted-foreground"
-                      onClick={() => setShowConfirmPassword((current) => !current)}
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowConfirmPassword((c) => !c)}
                       type="button"
                     >
                       {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
-                  {errors.confirmPassword ? <p className="text-sm font-normal text-destructive">{errors.confirmPassword}</p> : null}
-                </label>
+                  {errors.confirmPassword && <p className="text-xs font-medium text-destructive">{errors.confirmPassword}</p>}
+                </div>
               </div>
 
-              <label className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground">
-                <input
-                  checked={formValues.agreeTerms}
-                  className="mt-0.5"
-                  disabled={isLoading}
-                  name="agreeTerms"
-                  onChange={handleChange}
-                  type="checkbox"
-                />
-                <span>I agree to the platform terms and privacy policy.</span>
-              </label>
-              {errors.agreeTerms ? <p className="-mt-2 text-sm font-normal text-destructive">{errors.agreeTerms}</p> : null}
+              {/* Điều khoản */}
+              <div className="space-y-1">
+                <label className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    checked={formValues.agreeTerms}
+                    className="mt-0.5 rounded border-border"
+                    disabled={isLoading}
+                    name="agreeTerms"
+                    onChange={handleInputChange}
+                    type="checkbox"
+                  />
+                  <span>Tôi đồng ý với các **Điều khoản dịch vụ** và **Chính sách bảo mật** của Smart Learning.</span>
+                </label>
+                {errors.agreeTerms && <p className="text-xs font-medium text-destructive pl-1">{errors.agreeTerms}</p>}
+              </div>
 
-              <Button className="w-full" disabled={isLoading} type="submit">
-                {isLoading ? 'Creating account...' : 'Create account'}
+              <Button
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md shadow-blue-600/20 rounded-xl"
+                disabled={isLoading}
+                type="submit"
+              >
+                {isLoading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản ngay'}
               </Button>
             </form>
           </div>

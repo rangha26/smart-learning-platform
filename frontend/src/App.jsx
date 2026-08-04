@@ -26,7 +26,11 @@ import { StudentHomePage } from '@/pages/student/Home'
 import { StudentLearningPage } from '@/pages/student/Learning'
 import { StudentProfilePage } from '@/pages/student/Profile'
 
+// Shared Pages
+import { ClassDetailPage } from '@/pages/ClassDetail'
+
 // Auth Pages
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPassword'
 import { LoginPage } from '@/pages/auth/Login'
 import { RegisterPage } from '@/pages/auth/Register'
 
@@ -47,6 +51,7 @@ function AppRoutes() {
       {/* Auth Public Routes */}
       <Route element={<LoginPage />} path="/login" />
       <Route element={<RegisterPage />} path="/register" />
+      <Route element={<ForgotPasswordPage />} path="/forgot-password" />
 
       {/* Admin Role Routes */}
       <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
@@ -65,6 +70,7 @@ function AppRoutes() {
           <Route element={<TeacherMyCoursesPage />} path="/teacher/courses" />
           <Route element={<TeacherAssignmentsPage />} path="/teacher/assignments" />
           <Route element={<TeacherStudentsPage />} path="/teacher/students" />
+          <Route element={<ClassDetailPage />} path="/teacher/class/:id" />
         </Route>
       </Route>
 
@@ -75,6 +81,7 @@ function AppRoutes() {
           <Route element={<StudentLearningPage />} path="/student/learning" />
           <Route element={<StudentCertificatesPage />} path="/student/certificates" />
           <Route element={<StudentProfilePage />} path="/student/profile" />
+          <Route element={<ClassDetailPage />} path="/student/class/:id" />
         </Route>
       </Route>
 

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import {
   BookOpenCheck,
   FileCheck,
+  FolderPlus,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -9,6 +11,7 @@ import {
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { CreateClassModal } from '@/components/classes'
 import { useAuth } from '@/context/AuthContext'
 
 const teacherNavItems = [
@@ -21,10 +24,16 @@ const teacherNavItems = [
 export function TeacherLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleClassCreated = (newClass) => {
+    // Reload hoặc thông báo thành công nếu cần
+    window.dispatchEvent(new CustomEvent('class_updated', { detail: newClass }))
   }
 
   return (
@@ -44,7 +53,18 @@ export function TeacherLayout() {
             </div>
           </div>
 
-          <nav className="mt-8 grid gap-1.5">
+          {/* Quick Action Button in Sidebar */}
+          <div className="mt-6 px-1">
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
+            >
+              <FolderPlus className="size-4" />
+              Tạo lớp học mới
+            </Button>
+          </div>
+
+          <nav className="mt-6 grid gap-1.5">
             {teacherNavItems.map(({ label, path, icon: Icon }) => (
               <NavLink
                 className={({ isActive }) =>
@@ -98,6 +118,14 @@ export function TeacherLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs"
+              >
+                <FolderPlus className="mr-1.5 size-4" />
+                Tạo lớp
+              </Button>
               <div className="hidden sm:flex flex-col text-right">
                 <span className="text-sm font-medium text-foreground">{user?.full_name}</span>
                 <span className="text-xs text-muted-foreground">{user?.email}</span>
@@ -114,6 +142,13 @@ export function TeacherLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Modal tạo lớp học */}
+      <CreateClassModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleClassCreated}
+      />
     </div>
   )
 }
