@@ -1,16 +1,13 @@
-import os
-import sys
 from logging.config import fileConfig
 
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+
 from alembic import context
-from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, pool
 
-sys.path.insert(0, os.getcwd())
-load_dotenv()
-
-from app.db import Base
-import app.models  # noqa: F401, F403
+from app.models.base import Base  # Import your Base class here
+from app.models.all_models import *  # Import all your models here
+from app.core.config import settings  # Import your settings here
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -21,14 +18,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-
-db_url = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://app_user:app_password@localhost:5432/classroom_db",
-)
-config.set_main_option("sqlalchemy.url", db_url)
-
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -48,7 +42,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = settings.DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -67,8 +61,12 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+
+    configuration = config.get_section(config.config_ini_section)
+    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
