@@ -15,5 +15,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
+    watch: {
+      // Docker Desktop trên Windows không chuyển tiếp inotify events từ bind mount
+      // vào container, nên chokidar (dùng bởi Vite) không tự phát hiện thay đổi file.
+      // Polling đảm bảo HMR vẫn hoạt động trong môi trường này.
+      usePolling: true,
+      interval: 300,
+    },
   },
 })
