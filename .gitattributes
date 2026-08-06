@@ -1,0 +1,5 @@
+# Cac file shell script phai luon co line ending LF, khong phu thuoc core.autocrlf
+# cua tung may. Neu khong, tren Windows Git se tu chuyen LF -> CRLF khi checkout,
+# lam hong dong shebang (#!/bin/sh\r) va khien Docker bao loi
+# "exec /app/entrypoint.sh: no such file or directory" khi build image tu working tree.
+*.sh text eol=lf
