@@ -343,19 +343,25 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # 2. Sinh mã OTP 6 chữ số ngẫu nhiên an toàn bằng secrets module
     otp_code = generate_otp_code(digits=6)
 
-    # 3. Gửi Email OTP trước khi lưu (nếu lỗi SMTP, không lưu OTP vào Redis)
+    # 3. Lưu mã OTP trước khi gửi để email nhận được luôn có thể xác thực
     ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60
+    otp_saved = save_otp(email=payload.email, otp_code=otp_code, ttl_seconds=ttl_seconds)
+    if not otp_saved:
+        raise InternalServerErrorException(
+            "Không thể tạo mã OTP. Vui lòng thử lại sau."
+        )
+
+    # 4. Gửi Email OTP sau khi lưu thành công; nếu gửi lỗi thì xóa OTP vừa tạo
     try:
         email_sent = send_otp_email(to_email=user.email, otp_code=otp_code, user_name=user.full_name)
     except Exception as e:
+        delete_otp(payload.email)
         raise InternalServerErrorException(f"Không thể gửi email OTP. Vui lòng thử lại sau. Chi tiết lỗi: {str(e)}")
 
     if not email_sent:
-        logger.error("OTP email was not sent; skipping OTP persistence for %s", user.email)
+        delete_otp(payload.email)
+        logger.error("OTP email was not sent; deleted persisted OTP for %s", user.email)
         return MessageResponse(message=FORGOT_PASSWORD_RESPONSE_MESSAGE)
-
-    # 4. Lưu mã OTP vào Redis Cache với TTL = 10 phút
-    save_otp(email=payload.email, otp_code=otp_code, ttl_seconds=ttl_seconds)
 
     return MessageResponse(message=FORGOT_PASSWORD_RESPONSE_MESSAGE)
 

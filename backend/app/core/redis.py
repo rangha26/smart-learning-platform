@@ -102,7 +102,8 @@ def save_otp(email: str, otp_code: str, ttl_seconds: int = 600) -> bool:
             logger.info(f"🔑 Đã lưu OTP vào Redis (TTL: {ttl_seconds}s)")
             return True
     except Exception as e:
-        logger.error(f"❌ Lỗi ghi OTP vào Redis: {e}. Chuyển sang In-Memory.")
+        logger.error(f"❌ Lỗi ghi OTP vào Redis: {e}.")
+        return False
 
     # Fallback In-Memory
     expire_at = time.time() + ttl_seconds
