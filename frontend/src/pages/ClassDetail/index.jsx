@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Archive,
   ArrowLeft,
@@ -27,11 +27,13 @@ import {
   Video,
   X,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { classService } from '@/services/classService'
+import { useAuth } from '@/context/useAuth'
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
-const CLASS_INFO = {
+const FALLBACK_CLASS_INFO = {
   id: 1,
   title: 'Frontend Foundations',
   subject: 'Lập trình Web',
@@ -288,7 +290,6 @@ function BangTinTab() {
   const [commentInputs, setCommentInputs] = useState({})
   const [attachedFiles, setAttachedFiles] = useState([])   // { file, preview }
   const [showDropZone, setShowDropZone] = useState(false)
-  const fileInputRef = useRef(null)
 
   const addFiles = (files) => {
     const newItems = files.map((file) => {
@@ -886,12 +887,59 @@ const TABS = [
 
 export function ClassDetailPage() {
   const [activeTab, setActiveTab] = useState('bangtin')
+  const [classInfo, setClassInfo] = useState(FALLBACK_CLASS_INFO)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { id } = useParams()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadClassDetail() {
+      if (!id) {
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError('')
+      try {
+        const data = await classService.getClassById(id)
+        if (!ignore && data) {
+          setClassInfo({
+            id: data.id,
+            title: data.title,
+            subject: data.subject || 'Lớp học',
+            description: data.description || 'Không có mô tả cho lớp học này.',
+            join_code: data.join_code,
+            teacher: data.instructor?.full_name || user?.full_name || 'Giảng viên',
+            student_count: data.student_count ?? 0,
+            banner_color: FALLBACK_CLASS_INFO.banner_color,
+          })
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || 'Không thể tải thông tin lớp học.')
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadClassDetail()
+    return () => {
+      ignore = true
+    }
+  }, [id, user?.full_name])
 
   return (
     <div className="min-h-screen bg-background">
       {/* ── Hero Banner ── */}
-      <div className={`relative bg-gradient-to-r ${CLASS_INFO.banner_color} overflow-hidden`}>
+      <div className={`relative bg-gradient-to-r ${classInfo.banner_color} overflow-hidden`}>
         {/* Decorative background shapes */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-10 -right-10 size-64 rounded-full bg-white/5 blur-2xl" />
@@ -915,24 +963,24 @@ export function ClassDetailPage() {
               {/* Subject badge */}
               <span className="inline-flex items-center rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white border border-white/20 mb-3">
                 <BookOpen className="mr-1.5 size-3" />
-                {CLASS_INFO.subject}
+                {loading ? 'Đang tải...' : classInfo.subject}
               </span>
 
               <h1 className="text-3xl font-bold tracking-tight text-white leading-tight">
-                {CLASS_INFO.title}
+                {loading ? 'Đang tải lớp học...' : classInfo.title}
               </h1>
               <p className="mt-2 max-w-xl text-sm text-white/75 leading-relaxed">
-                {CLASS_INFO.description}
+                {error || classInfo.description}
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-white/80">
                 <span className="flex items-center gap-1.5">
                   <GraduationCap className="size-4" />
-                  {CLASS_INFO.teacher}
+                  {classInfo.teacher}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Users className="size-4" />
-                  {CLASS_INFO.student_count} học viên
+                  {classInfo.student_count} học viên
                 </span>
               </div>
             </div>
@@ -944,7 +992,7 @@ export function ClassDetailPage() {
                 Mã lớp
               </div>
               <p className="text-2xl font-mono font-extrabold tracking-widest">
-                {CLASS_INFO.join_code}
+                {classInfo.join_code || '-'}
               </p>
             </div>
           </div>

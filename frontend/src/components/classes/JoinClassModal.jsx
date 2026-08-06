@@ -9,6 +9,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
 import { classService } from '@/services/classService'
 
 export function JoinClassModal({ isOpen, onClose, onSuccess }) {
+  const navigate = useNavigate()
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -87,7 +89,7 @@ export function JoinClassModal({ isOpen, onClose, onSuccess }) {
       </DialogHeader>
 
       {!joinedClass ? (
-        <form onSubmit={handleSubmit}>
+        <form className="flex flex-1 flex-col min-h-0" onSubmit={handleSubmit}>
           <DialogContent className="space-y-4">
             {error && (
               <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-medium text-destructive animate-in fade-in">
@@ -147,7 +149,7 @@ export function JoinClassModal({ isOpen, onClose, onSuccess }) {
         </form>
       ) : (
         /* Màn hình Tham gia Thành công */
-        <div className="animate-in fade-in zoom-in-95">
+        <div className="flex flex-1 flex-col min-h-0 animate-in fade-in zoom-in-95">
           <DialogContent className="space-y-4 py-6 text-center">
             <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 animate-bounce">
               <CheckCircle2 className="size-8" />
@@ -191,7 +193,13 @@ export function JoinClassModal({ isOpen, onClose, onSuccess }) {
           <DialogFooter className="sm:justify-center">
             <Button
               type="button"
-              onClick={handleClose}
+              onClick={() => {
+                const classId = joinedClass?.id
+                handleClose()
+                if (classId) {
+                  navigate(`/student/class/${classId}`)
+                }
+              }}
               className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md shadow-emerald-600/20 px-8"
             >
               Vào lớp ngay

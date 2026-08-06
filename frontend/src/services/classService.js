@@ -1,5 +1,20 @@
 import apiClient from './axios'
 
+function getErrorMessage(error, fallback) {
+  const data = error.response?.data
+  return (
+    data?.error?.message ||
+    data?.detail ||
+    data?.message ||
+    error.message ||
+    fallback
+  )
+}
+
+function throwServiceError(error, fallback) {
+  throw new Error(getErrorMessage(error, fallback))
+}
+
 export const classService = {
   /**
    * Tạo lớp học mới (Dành cho Giáo viên)
@@ -26,7 +41,7 @@ export const classService = {
           student_count: 0,
         }
       }
-      throw error.response?.data || error
+      throwServiceError(error, 'Khong the tao lop hoc. Vui long thu lai.')
     }
   },
 
@@ -55,7 +70,7 @@ export const classService = {
           student_count: 15,
         }
       }
-      throw error.response?.data || error
+      throwServiceError(error, 'Ma tham gia khong chinh xac hoac lop khong ton tai.')
     }
   },
 
@@ -70,7 +85,19 @@ export const classService = {
       if (!error.response && import.meta.env.DEV) {
         return []
       }
-      throw error.response?.data || error
+      throwServiceError(error, 'Khong the tai danh sach lop hoc.')
+    }
+  },
+
+  async getClassById(classId) {
+    try {
+      const response = await apiClient.get(`/classes/${classId}`)
+      return response.data
+    } catch (error) {
+      if (!error.response && import.meta.env.DEV) {
+        return null
+      }
+      throwServiceError(error, 'Khong the tai thong tin lop hoc.')
     }
   },
 }
