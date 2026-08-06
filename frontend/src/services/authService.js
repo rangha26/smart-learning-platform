@@ -1,4 +1,5 @@
 import apiClient from './axios'
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from './tokenKeys'
 
 export const authService = {
   /**
@@ -38,6 +39,36 @@ export const authService = {
       this.saveSession(response.data)
     }
     return response.data
+  },
+
+  /**
+   * Exchange the stored refresh token for a new access token.
+   * Persists the new access token and (if returned) a rotated refresh token.
+   * @returns {Promise<string>} Resolves with the new access token string.
+   * @throws Will throw (and clear the session) if the refresh token is missing or rejected by the server.
+   */
+  async refreshToken() {
+    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!storedRefreshToken) {
+      this.logout()
+      throw new Error('Không có refresh token. Vui lòng đăng nhập lại.')
+    }
+
+    const response = await apiClient.post('/auth/refresh', {
+      refresh_token: storedRefreshToken,
+    })
+
+    const { access_token, refresh_token } = response.data
+
+    // Lưu access token mới
+    localStorage.setItem(ACCESS_TOKEN_KEY, access_token)
+
+    // Nếu server trả về refresh token mới (rotation), cập nhật luôn
+    if (refresh_token && refresh_token !== storedRefreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refresh_token)
+    }
+
+    return access_token
   },
 
   /**
@@ -82,36 +113,36 @@ export const authService = {
   },
 
   /**
-   * Save access token, refresh token, and user data to localStorage
+   * Save access token, refresh token, and user data to localStorage.
    * @param {Object} authData - { user, tokens: { access_token, refresh_token } }
    */
   saveSession(authData) {
     if (authData.tokens?.access_token) {
-      localStorage.setItem('access_token', authData.tokens.access_token)
+      localStorage.setItem(ACCESS_TOKEN_KEY, authData.tokens.access_token)
     }
     if (authData.tokens?.refresh_token) {
-      localStorage.setItem('refresh_token', authData.tokens.refresh_token)
+      localStorage.setItem(REFRESH_TOKEN_KEY, authData.tokens.refresh_token)
     }
     if (authData.user) {
-      localStorage.setItem('user', JSON.stringify(authData.user))
+      localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
     }
   },
 
   /**
-   * Clear session data from localStorage
+   * Clear session data from localStorage.
    */
   logout() {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user')
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
   },
 
   /**
-   * Get current stored user object
+   * Get current stored user object.
    */
   getCurrentUser() {
     try {
-      const userStr = localStorage.getItem('user')
+      const userStr = localStorage.getItem(USER_KEY)
       return userStr ? JSON.parse(userStr) : null
     } catch {
       return null
@@ -119,10 +150,10 @@ export const authService = {
   },
 
   /**
-   * Get current stored access token
+   * Get current stored access token.
    */
   getToken() {
-    return localStorage.getItem('access_token')
+    return localStorage.getItem(ACCESS_TOKEN_KEY)
   },
 }
 
