@@ -13,6 +13,12 @@ from app.schemas.auth import (
     VerifyOTPRequest,
     VerifyOTPResponse,
 )
+from app.schemas.classes import (
+    ClassCreateRequest,
+    ClassJoinRequest,
+    ClassResponse,
+    UserSummaryResponse,
+)
 
 __all__ = [
     "RegisterRequest",
@@ -28,4 +34,8 @@ __all__ = [
     "AuthResponse",
     "TokenPayload",
     "MessageResponse",
+    "ClassCreateRequest",
+    "ClassJoinRequest",
+    "UserSummaryResponse",
+    "ClassResponse",
 ]

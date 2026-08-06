@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.auth import auth_router
+from app.classes import classes_router
 from app.core import (
     NotFoundException,
     register_exception_handlers,
@@ -15,15 +16,16 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# 1. Kích hoạt Middleware CORS và Request Timing
+# 1. Kich hoat Middleware CORS va Request Timing
 setup_cors(app)
 setup_request_logging_middleware(app)
 
-# 2. Đăng ký Global Exception Handlers
+# 2. Dang ky Global Exception Handlers
 register_exception_handlers(app)
 
-# 3. Đăng ký Routers Auth
+# 3. Dang ky Routers Auth
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(classes_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -36,11 +38,11 @@ def health_check():
     return {"status": "ok"}
 
 
-# Endpoint test Exception Handlers (chỉ dùng thử nghiệm)
+# Endpoint test Exception Handlers (chi dung thu nghiem)
 @app.get("/test-error/{error_type}")
 def test_error(error_type: str):
     if error_type == "not-found":
-        raise NotFoundException("Không tìm thấy tài nguyên yêu cầu mẫu.")
+        raise NotFoundException("Khong tim thay tai nguyen yeu cau mau.")
     elif error_type == "unhandled":
-        raise ValueError("Lỗi runtime cố tình bắn ra để kiểm tra exception handler 500.")
+        raise ValueError("Loi runtime co tinh ban ra de kiem tra exception handler 500.")
     return {"message": "No error raised"}
