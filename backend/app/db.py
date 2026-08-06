@@ -5,9 +5,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
 
+db_user = os.getenv("DB_USER", "classroom")
+db_password = os.getenv("DB_PASSWORD", "classroom_password")
+db_name = os.getenv("DB_NAME", "classroom_db")
+
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://app_user:app_password@localhost:5432/classroom_db",
+    f"postgresql+psycopg2://{db_user}:{db_password}@localhost:5432/{db_name}",
 )
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
