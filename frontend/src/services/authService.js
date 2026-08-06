@@ -7,13 +7,8 @@ export const authService = {
    * @param {Object} data - { email, password, fullName, role }
    */
   async register({ email, password, fullName, role = 'student' }) {
-    let backendRole = 'STUDENT'
     const normalizedRole = (role || '').toUpperCase()
-    if (normalizedRole === 'TEACHER' || normalizedRole === 'INSTRUCTOR') {
-      backendRole = 'INSTRUCTOR'
-    } else {
-      backendRole = 'STUDENT'
-    }
+    const backendRole = normalizedRole === 'TEACHER' || normalizedRole === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT'
 
     const payload = {
       email,
