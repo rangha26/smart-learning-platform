@@ -17,6 +17,13 @@ from app.schemas.classes import (
     ClassResponse,
     UserSummaryResponse,
 )
+from app.schemas.dashboard import (
+    AdminDashboardResponse,
+    StudentDashboardResponse,
+    TeacherClassSummary,
+    TeacherDashboardResponse,
+    UpcomingAssignmentSummary,
+)
 
 __all__ = [
     "RegisterRequest",
@@ -34,4 +41,9 @@ __all__ = [
     "ClassJoinRequest",
     "UserSummaryResponse",
     "ClassResponse",
+    "AdminDashboardResponse",
+    "TeacherClassSummary",
+    "UpcomingAssignmentSummary",
+    "TeacherDashboardResponse",
+    "StudentDashboardResponse",
 ]
