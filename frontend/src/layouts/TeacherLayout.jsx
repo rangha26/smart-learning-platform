@@ -12,7 +12,7 @@ import {
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { CreateClassModal } from '@/components/classes'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/context/useAuth'
 
 const teacherNavItems = [
   { label: 'Overview', path: '/teacher', icon: LayoutDashboard },

@@ -1,7 +1,6 @@
 import {
   BarChart3,
   BookOpenCheck,
-  GraduationCap,
   LayoutDashboard,
   LogOut,
   ShieldAlert,
@@ -9,7 +8,7 @@ import {
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/context/useAuth'
 
 const adminNavItems = [
   { label: 'Overview', path: '/admin', icon: LayoutDashboard },
