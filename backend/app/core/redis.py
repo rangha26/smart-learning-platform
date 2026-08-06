@@ -300,7 +300,8 @@ def store_token(jti: str, user_id: int, ttl_seconds: int) -> bool:
             logger.debug(f"🎟️ Đã lưu JTI [{jti[:8]}...] cho user [{user_id}] (TTL: {ttl_seconds}s)")
             return True
     except Exception as e:
-        logger.error(f"❌ Lỗi lưu token JTI vào Redis: {e}. Chuyển sang In-Memory.")
+        logger.error(f"❌ Lỗi lưu token JTI vào Redis: {e}.")
+        return False
 
     # Fallback In-Memory
     _token_whitelist[jti_key] = uid_str
@@ -324,7 +325,8 @@ def is_token_valid(jti: str) -> bool:
         if redis_client:
             return bool(redis_client.exists(jti_key))
     except Exception as e:
-        logger.error(f"❌ Lỗi kiểm tra JTI trên Redis: {e}. Dùng In-Memory fallback.")
+        logger.error(f"❌ Lỗi kiểm tra JTI trên Redis: {e}.")
+        return False
 
     # Fallback In-Memory
     return jti_key in _token_whitelist
@@ -362,7 +364,8 @@ def revoke_all_user_tokens(user_id: int) -> int:
             logger.info(f"🚫 Đã thu hồi {revoked_count} token(s) của user [{user_id}]")
             return revoked_count
     except Exception as e:
-        logger.error(f"❌ Lỗi thu hồi token trên Redis: {e}. Dùng In-Memory fallback.")
+        logger.error(f"❌ Lỗi thu hồi token trên Redis: {e}.")
+        return -1
 
     # Fallback In-Memory
     jtis_local = _user_token_index.pop(uid_str, set())

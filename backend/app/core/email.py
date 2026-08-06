@@ -121,11 +121,20 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "") -> bool:
     Nếu chưa cấu hình SMTP_USER hoặc SMTP_PASSWORD, hàm sẽ tự động in mã OTP ra Console log.
     """
 
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning(
+            "SMTP credentials are not configured. Development OTP for %s: %s",
+            to_email,
+            otp_code,
+        )
+        return True
+
     try:
         # Tạo đối tượng MIME Message
         msg = MIMEMultipart("alternative")
         msg["Subject"] = Header("Mã OTP đặt lại mật khẩu - Smart Learning Platform", "utf-8")
-        msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL or settings.SMTP_USER}>"
+        from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+        msg["From"] = f"{settings.SMTP_FROM_NAME} <{from_email}>"
         msg["To"] = to_email
 
         # Gắn nội dung HTML vào email
@@ -133,17 +142,16 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "") -> bool:
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
         # Kết nối tới SMTP Server (Khởi tạo kết nối TLS)
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            if settings.SMTP_USE_TLS:
-                server.starttls()
-            if settings.SMTP_USE_SSL:
-                server.connect(settings.SMTP_HOST, settings.SMTP_PORT)
+        smtp_cls = smtplib.SMTP_SSL if settings.SMTP_USE_SSL else smtplib.SMTP
+        with smtp_cls(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_USE_TLS and not settings.SMTP_USE_SSL:
                 server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
+            server.sendmail(from_email, [to_email], msg.as_string())
 
         logger.info(f"✅ Gửi email OTP thành công tới: {to_email}")
         return True
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to send OTP email to %s", to_email)
         return False

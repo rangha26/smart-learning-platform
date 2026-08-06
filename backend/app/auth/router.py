@@ -12,6 +12,7 @@ Bao gồm các Endpoints:
 - POST /api/v1/auth/reset-password:  Xác thực reset_session_token, đổi mật khẩu, thu hồi token cũ
 """
 
+import logging
 from datetime import timedelta
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -64,6 +65,12 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger("app.auth")
+
+FORGOT_PASSWORD_RESPONSE_MESSAGE = (
+    "Nếu tài khoản tồn tại, mã OTP đã được gửi tới email này. "
+    "Vui lòng kiểm tra hộp thư đến hoặc thư rác."
+)
 
 
 def _issue_token_pair(user: User) -> tuple[str, str, timedelta, timedelta]:
@@ -92,16 +99,20 @@ def _issue_token_pair(user: User) -> tuple[str, str, timedelta, timedelta]:
     access_payload = _jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     refresh_payload = _jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
-    store_token(
+    access_stored = store_token(
         jti=access_payload["jti"],
         user_id=user.id,
         ttl_seconds=int(access_expires.total_seconds()),
     )
-    store_token(
+    refresh_stored = store_token(
         jti=refresh_payload["jti"],
         user_id=user.id,
         ttl_seconds=int(refresh_expires.total_seconds()),
     )
+    if not access_stored or not refresh_stored:
+        raise InternalServerErrorException(
+            "Không thể tạo phiên đăng nhập. Vui lòng thử lại sau."
+        )
 
     return access_token, refresh_token, access_expires, refresh_expires
 
@@ -229,11 +240,15 @@ def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
 
     from jose import jwt as _jwt
     access_payload = _jwt.decode(new_access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    store_token(
+    access_stored = store_token(
         jti=access_payload["jti"],
         user_id=user.id,
         ttl_seconds=int(access_expires.total_seconds()),
     )
+    if not access_stored:
+        raise InternalServerErrorException(
+            "Không thể cấp Access Token mới. Vui lòng thử lại sau."
+        )
 
     return TokenResponse(
         access_token=new_access_token,
@@ -268,10 +283,16 @@ def change_password(
 
     # 3. Cập nhật mật khẩu mới
     current_user.hashed_password = get_password_hash(payload.new_password)
-    db.commit()
 
     # 4. Thu hồi tất cả token: xóa toàn bộ JTI của user khỏi Redis whitelist
-    revoke_all_user_tokens(current_user.id)
+    revoked = revoke_all_user_tokens(current_user.id)
+    if revoked < 0:
+        db.rollback()
+        raise InternalServerErrorException(
+            "Không thể thu hồi phiên đăng nhập cũ. Vui lòng thử lại sau."
+        )
+
+    db.commit()
 
     return MessageResponse(
         message="Đổi mật khẩu thành công. Tất cả phiên đăng nhập cũ đã bị thu hồi. Vui lòng đăng nhập lại."
@@ -293,6 +314,10 @@ def logout_all(
 ):
     # Xóa toàn bộ JTI đang active của user khỏi Redis whitelist
     revoked = revoke_all_user_tokens(current_user.id)
+    if revoked < 0:
+        raise InternalServerErrorException(
+            "Không thể đăng xuất khỏi tất cả thiết bị. Vui lòng thử lại sau."
+        )
 
     return MessageResponse(
         message=f"Đã đăng xuất khỏi tất cả thiết bị. {revoked} phiên đăng nhập đã bị thu hồi."
@@ -313,7 +338,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # 1. Kiểm tra Email có tồn tại trên hệ thống không
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
-        raise NotFoundException(f"Nếu tài khoản tồn tại, mã OTP đã được gửi tới email này. Vui lòng kiểm tra hộp thư đến hoặc thư rác.")
+        return MessageResponse(message=FORGOT_PASSWORD_RESPONSE_MESSAGE)
 
     # 2. Sinh mã OTP 6 chữ số ngẫu nhiên an toàn bằng secrets module
     otp_code = generate_otp_code(digits=6)
@@ -321,16 +346,18 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # 3. Gửi Email OTP trước khi lưu (nếu lỗi SMTP, không lưu OTP vào Redis)
     ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60
     try:
-        send_otp_email(to_email=user.email, otp_code=otp_code, user_name=user.full_name)
+        email_sent = send_otp_email(to_email=user.email, otp_code=otp_code, user_name=user.full_name)
     except Exception as e:
         raise InternalServerErrorException(f"Không thể gửi email OTP. Vui lòng thử lại sau. Chi tiết lỗi: {str(e)}")
+
+    if not email_sent:
+        logger.error("OTP email was not sent; skipping OTP persistence for %s", user.email)
+        return MessageResponse(message=FORGOT_PASSWORD_RESPONSE_MESSAGE)
 
     # 4. Lưu mã OTP vào Redis Cache với TTL = 10 phút
     save_otp(email=payload.email, otp_code=otp_code, ttl_seconds=ttl_seconds)
 
-    return MessageResponse(
-        message=f"Mã OTP đã được gửi tới email '{payload.email}'. Mã có hiệu lực trong {settings.OTP_EXPIRE_MINUTES} phút."
-    )
+    return MessageResponse(message=FORGOT_PASSWORD_RESPONSE_MESSAGE)
 
 
 @router.post(
@@ -397,10 +424,16 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
     # 2. Cập nhật mật khẩu mới băm bằng BCrypt
     user.hashed_password = get_password_hash(payload.new_password)
-    db.commit()
 
     # 3. Thu hồi tất cả token cũ: xóa toàn bộ JTI của user khỏi Redis whitelist
-    revoke_all_user_tokens(user.id)
+    revoked = revoke_all_user_tokens(user.id)
+    if revoked < 0:
+        db.rollback()
+        raise InternalServerErrorException(
+            "Không thể thu hồi phiên đăng nhập cũ. Vui lòng thử lại sau."
+        )
+
+    db.commit()
 
     # 4. Xóa reset_session_token khỏi Redis Cache sau khi sử dụng thành công (Single-use token)
     delete_reset_token(payload.reset_session_token)

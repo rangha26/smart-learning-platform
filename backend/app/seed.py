@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from app.core.security import get_password_hash
 from app.db import SessionLocal
 from app.models import (
     User,
@@ -16,6 +17,10 @@ from app.models import (
     SubmissionState,
 )
 
+ADMIN_PASSWORD = "AdminPassword123!"
+TEACHER_PASSWORD = "TeacherPassword123!"
+STUDENT_PASSWORD = "StudentPassword123!"
+
 
 def seed_data():
     db: Session = SessionLocal()
@@ -30,42 +35,42 @@ def seed_data():
         # 1. Create Users
         admin = User(
             email="admin@smartlearning.com",
-            hashed_password="hashed_admin_password_123",
+            hashed_password=get_password_hash(ADMIN_PASSWORD),
             full_name="Quản Trị Viên",
             role=UserRole.ADMIN,
             status=UserStatus.ACTIVE,
         )
         teacher1 = User(
             email="teacher.nguyen@smartlearning.com",
-            hashed_password="hashed_teacher_password_123",
+            hashed_password=get_password_hash(TEACHER_PASSWORD),
             full_name="Thầy Nguyễn Văn An",
             role=UserRole.INSTRUCTOR,
             status=UserStatus.ACTIVE,
         )
         teacher2 = User(
             email="teacher.tran@smartlearning.com",
-            hashed_password="hashed_teacher_password_123",
+            hashed_password=get_password_hash(TEACHER_PASSWORD),
             full_name="Cô Trần Thị Bình",
             role=UserRole.INSTRUCTOR,
             status=UserStatus.ACTIVE,
         )
         student1 = User(
             email="student.dinh@smartlearning.com",
-            hashed_password="hashed_student_password_123",
+            hashed_password=get_password_hash(STUDENT_PASSWORD),
             full_name="Đinh Hoàng Nam",
             role=UserRole.STUDENT,
             status=UserStatus.ACTIVE,
         )
         student2 = User(
             email="student.le@smartlearning.com",
-            hashed_password="hashed_student_password_123",
+            hashed_password=get_password_hash(STUDENT_PASSWORD),
             full_name="Lê Minh Anh",
             role=UserRole.STUDENT,
             status=UserStatus.ACTIVE,
         )
         student3 = User(
             email="student.pham@smartlearning.com",
-            hashed_password="hashed_student_password_123",
+            hashed_password=get_password_hash(STUDENT_PASSWORD),
             full_name="Phạm Quốc Bảo",
             role=UserRole.STUDENT,
             status=UserStatus.ACTIVE,
