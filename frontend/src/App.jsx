@@ -23,7 +23,6 @@ import { TeacherMyCoursesPage } from '@/pages/teacher/MyCourses'
 import { TeacherStudentsPage } from '@/pages/teacher/Students'
 
 // Student Pages
-import { StudentCertificatesPage } from '@/pages/student/Certificates'
 import { StudentHomePage } from '@/pages/student/Home'
 import { StudentLearningPage } from '@/pages/student/Learning'
 import { StudentProfilePage } from '@/pages/student/Profile'
@@ -81,7 +80,6 @@ function AppRoutes() {
         <Route element={<StudentLayout />}>
           <Route element={<StudentHomePage />} path="/student" />
           <Route element={<StudentLearningPage />} path="/student/learning" />
-          <Route element={<StudentCertificatesPage />} path="/student/certificates" />
           <Route element={<StudentProfilePage />} path="/student/profile" />
           <Route element={<ClassDetailPage />} path="/student/class/:id" />
         </Route>

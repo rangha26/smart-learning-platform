@@ -32,112 +32,8 @@ import { Button } from '@/components/ui/button'
 import { classService } from '@/services/classService'
 import { useAuth } from '@/context/useAuth'
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const FALLBACK_CLASS_INFO = {
-  id: 1,
-  title: 'Frontend Foundations',
-  subject: 'Lập trình Web',
-  description:
-    'Khóa học lập trình web hiện đại với React, HTML, CSS và JavaScript. Học viên sẽ được thực hành qua các dự án thực tế.',
-  join_code: 'FRONT88',
-  teacher: 'Nguyễn Minh Khoa',
-  student_count: 28,
-  banner_color: 'from-indigo-600 via-indigo-500 to-violet-600',
-}
-
-const POSTS = [
-  {
-    id: 1,
-    author: 'Nguyễn Minh Khoa',
-    avatar: 'NMK',
-    role: 'teacher',
-    time: '2 giờ trước',
-    content:
-      'Chào cả lớp! 👋 Tuần này chúng ta sẽ bắt đầu học về React Hooks. Hãy xem trước tài liệu và chuẩn bị câu hỏi nhé. Buổi học trực tuyến vào thứ 4 lúc 19h30.',
-    attachments: [],
-    comments: [
-      { id: 1, author: 'Trần Thu Hà', avatar: 'TTH', time: '1 giờ trước', text: 'Em đã đọc rồi ạ! Rất thú vị 🎉' },
-      { id: 2, author: 'Lê Văn Bình', avatar: 'LVB', time: '45 phút trước', text: 'Thầy ơi, slide bài giảng upload ở đâu ạ?' },
-    ],
-    pinned: true,
-  },
-  {
-    id: 2,
-    author: 'Nguyễn Minh Khoa',
-    avatar: 'NMK',
-    role: 'teacher',
-    time: 'Hôm qua',
-    content:
-      '📌 Nhắc nhở: Bài tập "Build a Landing Page" hạn nộp vào ngày mai 23:59. Các em nhớ submit qua form nhé!',
-    attachments: [{ name: 'assignment_guidelines.pdf', type: 'pdf' }],
-    comments: [
-      { id: 3, author: 'Phạm Anh Tuấn', avatar: 'PAT', time: '12 giờ trước', text: 'Dạ em nộp rồi ạ thầy!' },
-    ],
-    pinned: false,
-  },
-  {
-    id: 3,
-    author: 'Trần Thu Hà',
-    avatar: 'TTH',
-    role: 'student',
-    time: '3 ngày trước',
-    content: 'Mọi người ơi, có ai hiểu phần useEffect chưa? Em bị lỗi khi fetch API, thầy giúp em với ạ 🙏',
-    attachments: [],
-    comments: [
-      { id: 4, author: 'Nguyễn Minh Khoa', avatar: 'NMK', time: '3 ngày trước', text: 'Em gửi code lên đây thầy xem nhé!' },
-    ],
-    pinned: false,
-  },
-]
-
-const ASSIGNMENTS = [
-  {
-    id: 1,
-    title: 'Build a Landing Page',
-    description: 'Tạo một landing page responsive cho sản phẩm giả định bằng HTML & CSS thuần.',
-    due: 'Ngày mai, 23:59',
-    due_status: 'urgent',
-    points: 100,
-    submitted: false,
-    attachments: 2,
-  },
-  {
-    id: 2,
-    title: 'React Component Library',
-    description: 'Xây dựng thư viện component cơ bản với Button, Input, Card và Modal.',
-    due: '15/08/2025',
-    due_status: 'upcoming',
-    points: 150,
-    submitted: true,
-    attachments: 1,
-  },
-  {
-    id: 3,
-    title: 'JavaScript Fundamentals Quiz',
-    description: 'Bài kiểm tra kiến thức JS: closures, prototype, async/await.',
-    due: '10/08/2025',
-    due_status: 'past',
-    points: 50,
-    submitted: true,
-    attachments: 0,
-  },
-]
-
-const MEMBERS = {
-  teacher: [
-    { id: 1, name: 'Nguyễn Minh Khoa', email: 'nmikhoa@edu.vn', avatar: 'NMK' },
-  ],
-  students: [
-    { id: 2, name: 'Trần Thu Hà', email: 'ttha@student.edu.vn', avatar: 'TTH', progress: 72 },
-    { id: 3, name: 'Lê Văn Bình', avatar: 'LVB', email: 'lvbinh@student.edu.vn', progress: 55 },
-    { id: 4, name: 'Phạm Anh Tuấn', avatar: 'PAT', email: 'patuan@student.edu.vn', progress: 90 },
-    { id: 5, name: 'Nguyễn Quỳnh Anh', avatar: 'NQA', email: 'nqanh@student.edu.vn', progress: 40 },
-    { id: 6, name: 'Hoàng Đức Minh', avatar: 'HDM', email: 'hdminh@student.edu.vn', progress: 68 },
-    { id: 7, name: 'Vũ Thị Lan', avatar: 'VTL', email: 'vtlan@student.edu.vn', progress: 83 },
-    { id: 8, name: 'Đặng Quốc Huy', avatar: 'DQH', email: 'dqhuy@student.edu.vn', progress: 61 },
-    { id: 9, name: 'Bùi Thị Mai', avatar: 'BTM', email: 'btmai@student.edu.vn', progress: 77 },
-  ],
-}
+// ─── Default banner color ─────────────────────────────────────────────────────
+const DEFAULT_BANNER_COLOR = 'from-indigo-600 via-indigo-500 to-violet-600'
 
 // ─── Avatar Component ─────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -285,7 +181,7 @@ function PostAttachment({ att }) {
 // ─── Tab: Bảng tin ────────────────────────────────────────────────────────────
 function BangTinTab() {
   const [newPost, setNewPost] = useState('')
-  const [posts, setPosts] = useState(POSTS)
+  const [posts, setPosts] = useState([])
   const [expandedComments, setExpandedComments] = useState({})
   const [commentInputs, setCommentInputs] = useState({})
   const [attachedFiles, setAttachedFiles] = useState([])   // { file, preview }
@@ -676,117 +572,35 @@ function BangTinTab() {
 
 // ─── Tab: Bài tập ─────────────────────────────────────────────────────────────
 function BaiTapTab() {
-  const STATUS_CONFIG = {
-    urgent: { label: 'Gấp!', cls: 'bg-red-100 text-red-700 border-red-200' },
-    upcoming: { label: 'Sắp tới', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-    past: { label: 'Đã qua', cls: 'bg-muted text-muted-foreground border-border' },
-  }
-
-  const submitted = ASSIGNMENTS.filter((a) => a.submitted).length
-  const total = ASSIGNMENTS.length
-
   return (
-    <div className="space-y-5">
-      {/* Summary Bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-border/70 bg-card p-4 text-center shadow-xs">
-          <p className="text-2xl font-bold text-foreground">{total}</p>
-          <p className="text-xs text-muted-foreground mt-1">Tổng bài tập</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center shadow-xs">
-          <p className="text-2xl font-bold text-emerald-700">{submitted}</p>
-          <p className="text-xs text-emerald-700/70 mt-1">Đã nộp</p>
-        </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center shadow-xs">
-          <p className="text-2xl font-bold text-amber-700">{total - submitted}</p>
-          <p className="text-xs text-amber-700/70 mt-1">Chưa nộp</p>
-        </div>
+    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed bg-card py-16 text-center">
+      <div className="flex size-14 items-center justify-center rounded-full bg-indigo-50">
+        <ClipboardList className="size-7 text-indigo-500" />
       </div>
-
-      {/* Assignment List */}
-      <div className="space-y-3">
-        {ASSIGNMENTS.map((assignment) => {
-          const status = STATUS_CONFIG[assignment.due_status]
-          return (
-            <article
-              key={assignment.id}
-              className="group rounded-2xl border border-border/70 bg-card p-5 shadow-xs hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer"
-            >
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <div
-                  className={`flex size-11 shrink-0 items-center justify-center rounded-xl shadow-xs ${
-                    assignment.submitted
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-indigo-100 text-indigo-700'
-                  }`}
-                >
-                  {assignment.submitted ? (
-                    <CheckSquare className="size-5" />
-                  ) : (
-                    <ClipboardList className="size-5" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-foreground group-hover:text-indigo-700 transition-colors">
-                      {assignment.title}
-                    </h3>
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${status.cls}`}
-                    >
-                      {status.label}
-                    </span>
-                    {assignment.submitted && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                        <CheckSquare className="size-3" />
-                        Đã nộp
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">
-                    {assignment.description}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="size-3.5 text-indigo-500" />
-                      Hạn nộp: <strong className="text-foreground">{assignment.due}</strong>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Star className="size-3.5 text-amber-500" />
-                      <strong className="text-foreground">{assignment.points}</strong> điểm
-                    </span>
-                    {assignment.attachments > 0 && (
-                      <span className="flex items-center gap-1.5">
-                        <Paperclip className="size-3.5" />
-                        {assignment.attachments} tệp đính kèm
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <ChevronRight className="size-4 text-muted-foreground group-hover:text-indigo-600 shrink-0 mt-1 transition-colors" />
-              </div>
-            </article>
-          )
-        })}
+      <div>
+        <p className="font-semibold text-foreground">Chưa có bài tập nào</p>
+        <p className="mt-1 text-sm text-muted-foreground">Bài tập do giảng viên tạo sẽ xuất hiện ở đây.</p>
       </div>
     </div>
   )
 }
 
 // ─── Tab: Mọi người ───────────────────────────────────────────────────────────
-function MoiNguoiTab() {
+function MoiNguoiTab({ classInfo }) {
   const [search, setSearch] = useState('')
-  const filtered = MEMBERS.students.filter(
+  const students = []
+  const filtered = students.filter(
     (s) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.email.toLowerCase().includes(search.toLowerCase())
   )
+
+  const teacherInitials = (classInfo?.teacher || 'GV')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('')
 
   return (
     <div className="space-y-6">
@@ -796,7 +610,7 @@ function MoiNguoiTab() {
           Giáo viên
         </h3>
         <div className="space-y-2">
-          {MEMBERS.teacher.map((teacher) => (
+          {[{ id: 'instructor', name: classInfo?.teacher || 'Giảng viên', email: '' }].map((teacher) => (
             <div
               key={teacher.id}
               className="flex items-center gap-3.5 rounded-2xl border border-border/70 bg-card p-4 shadow-xs"
@@ -887,7 +701,7 @@ const TABS = [
 
 export function ClassDetailPage() {
   const [activeTab, setActiveTab] = useState('bangtin')
-  const [classInfo, setClassInfo] = useState(FALLBACK_CLASS_INFO)
+  const [classInfo, setClassInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -916,7 +730,7 @@ export function ClassDetailPage() {
             join_code: data.join_code,
             teacher: data.instructor?.full_name || user?.full_name || 'Giảng viên',
             student_count: data.student_count ?? 0,
-            banner_color: FALLBACK_CLASS_INFO.banner_color,
+            banner_color: DEFAULT_BANNER_COLOR,
           })
         }
       } catch (err) {
@@ -939,7 +753,7 @@ export function ClassDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ── Hero Banner ── */}
-      <div className={`relative bg-gradient-to-r ${classInfo.banner_color} overflow-hidden`}>
+      <div className={`relative bg-gradient-to-r ${classInfo?.banner_color ?? DEFAULT_BANNER_COLOR} overflow-hidden`}>
         {/* Decorative background shapes */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-10 -right-10 size-64 rounded-full bg-white/5 blur-2xl" />
@@ -1024,7 +838,7 @@ export function ClassDetailPage() {
       <div className="mx-auto max-w-5xl px-6 py-7">
         {activeTab === 'bangtin' && <BangTinTab />}
         {activeTab === 'baitap' && <BaiTapTab />}
-        {activeTab === 'moinguoi' && <MoiNguoiTab />}
+        {activeTab === 'moinguoi' && <MoiNguoiTab classInfo={classInfo} />}
       </div>
     </div>
   )
