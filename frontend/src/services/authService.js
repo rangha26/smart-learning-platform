@@ -67,7 +67,7 @@ export const authService = {
   },
 
   /**
-   * Request password reset link
+   * Bước 1: Yêu cầu mã OTP quên mật khẩu, gửi qua email.
    * @param {string} email
    */
   async forgotPassword(email) {
@@ -78,7 +78,7 @@ export const authService = {
       if (!error.response && import.meta.env.DEV) {
         return {
           success: true,
-          message: `Nếu địa chỉ email '${email}' tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi tới hòm thư của bạn.`,
+          message: `Nếu địa chỉ email '${email}' tồn tại trong hệ thống, mã OTP đã được gửi tới hòm thư của bạn.`,
         }
       }
       throw error
@@ -86,13 +86,36 @@ export const authService = {
   },
 
   /**
-   * Reset password with token/code
-   * @param {Object} data - { token, newPassword }
+   * Bước 2: Xác thực mã OTP 6 số. Trả về reset_session_token dùng cho bước 3.
+   * @param {Object} data - { email, otpCode }
    */
-  async resetPassword({ token, newPassword }) {
+  async verifyOtp({ email, otpCode }) {
+    try {
+      const response = await apiClient.post('/auth/verify-otp', {
+        email,
+        otp_code: otpCode,
+      })
+      return response.data
+    } catch (error) {
+      if (!error.response && import.meta.env.DEV) {
+        return {
+          success: true,
+          reset_session_token: 'dev-mock-reset-session-token',
+          message: 'Mã OTP hợp lệ. Vui lòng nhập mật khẩu mới.',
+        }
+      }
+      throw error
+    }
+  },
+
+  /**
+   * Bước 3: Đặt lại mật khẩu bằng reset_session_token nhận từ bước verify-otp.
+   * @param {Object} data - { resetSessionToken, newPassword }
+   */
+  async resetPassword({ resetSessionToken, newPassword }) {
     try {
       const response = await apiClient.post('/auth/reset-password', {
-        token,
+        reset_session_token: resetSessionToken,
         new_password: newPassword,
       })
       return response.data
