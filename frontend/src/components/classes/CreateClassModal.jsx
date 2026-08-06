@@ -122,7 +122,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess }) {
         </div>
       </DialogHeader>
 
-      <form onSubmit={handleSubmit}>
+      <form className="flex flex-1 flex-col min-h-0" onSubmit={handleSubmit}>
         <DialogContent className="space-y-4">
           {error && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-medium text-destructive animate-in fade-in">
