@@ -1,1 +1,1 @@
-export { ClassDetailPage } from './index'
+export { ClassDetailPage } from './index.jsx'
