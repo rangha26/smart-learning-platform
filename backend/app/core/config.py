@@ -43,6 +43,24 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Redis Cache Configs
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: Union[str, None] = None
+
+    # SMTP Email & OTP Configs (Mã OTP sống 10 phút)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@smartlearning.com"
+    SMTP_FROM_NAME: str = "Smart Learning Platform"
+    OTP_EXPIRE_MINUTES: int = 10
+    SMTP_USE_SSL: bool = False
+    SMTP_USE_TLS: bool = True
+
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
