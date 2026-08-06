@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.auth import auth_router
 from app.classes import classes_router
+from app.dashboard import dashboard_router
 from app.core import (
     NotFoundException,
     register_exception_handlers,
@@ -26,6 +27,7 @@ register_exception_handlers(app)
 # 3. Dang ky Routers Auth
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(classes_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 
 @app.get("/")
