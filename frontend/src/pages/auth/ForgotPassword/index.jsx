@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -17,14 +16,24 @@ import {
 import { Button } from '@/components/ui/button'
 import { authService } from '@/services/authService'
 
+function extractApiErrorMessage(err, fallback) {
+  return (
+    err.response?.data?.error?.message ||
+    err.response?.data?.detail ||
+    err.response?.data?.message ||
+    fallback
+  )
+}
+
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
 
-  // Steps: 'request' | 'sent' | 'reset' | 'success'
+  // Steps: 'request' (nhap email) | 'sent' (nhap OTP) | 'reset' (mat khau moi) | 'success'
   const [step, setStep] = useState('request')
 
   const [email, setEmail] = useState('')
-  const [resetToken, setResetToken] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [resetSessionToken, setResetSessionToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -32,13 +41,14 @@ export function ForgotPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [emailError, setEmailError] = useState('')
+  const [otpError, setOtpError] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [apiError, setApiError] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
 
-  // Countdown timer for resending link/code
+  // Countdown timer for resending OTP
   useEffect(() => {
     let interval = null
     if (resendTimer > 0) {
@@ -57,7 +67,7 @@ export function ForgotPasswordPage() {
   const hasNumber = /[0-9]/.test(newPassword)
   const strengthScore = [hasMinLength, hasUpper, hasNumber].filter(Boolean).length
 
-  // Step 1: Send Request
+  // Buoc 1: Gui yeu cau OTP
   const handleRequestSubmit = async (e) => {
     e.preventDefault()
     setEmailError('')
@@ -76,19 +86,16 @@ export function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(email.trim())
       setLoading(false)
+      setOtpCode('')
       setStep('sent')
       setResendTimer(60)
     } catch (err) {
       setLoading(false)
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        'Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại.'
-      setApiError(msg)
+      setApiError(extractApiErrorMessage(err, 'Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại.'))
     }
   }
 
-  // Resend code handler
+  // Gui lai ma OTP
   const handleResend = async () => {
     if (resendTimer > 0) return
     setLoading(true)
@@ -96,23 +103,42 @@ export function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(email.trim())
       setLoading(false)
+      setOtpCode('')
       setResendTimer(60)
     } catch (err) {
       setLoading(false)
-      setApiError('Gửi lại thất bại. Vui lòng thử lại.')
+      setApiError(extractApiErrorMessage(err, 'Gửi lại thất bại. Vui lòng thử lại.'))
     }
   }
 
-  // Step 3: Reset Password Submit
+  // Buoc 2: Xac thuc OTP -> nhan reset_session_token
+  const handleVerifyOtpSubmit = async (e) => {
+    e.preventDefault()
+    setOtpError('')
+    setApiError('')
+
+    if (!/^\d{6}$/.test(otpCode)) {
+      setOtpError('Mã OTP phải gồm đúng 6 chữ số.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const data = await authService.verifyOtp({ email: email.trim(), otpCode })
+      setLoading(false)
+      setResetSessionToken(data.reset_session_token)
+      setStep('reset')
+    } catch (err) {
+      setLoading(false)
+      setApiError(extractApiErrorMessage(err, 'Mã OTP không đúng hoặc đã hết hạn.'))
+    }
+  }
+
+  // Buoc 3: Dat mat khau moi bang reset_session_token
   const handleResetSubmit = async (e) => {
     e.preventDefault()
     setPasswordError('')
     setApiError('')
-
-    if (!resetToken.trim()) {
-      setPasswordError('Vui lòng nhập mã khôi phục.')
-      return
-    }
 
     if (newPassword.length < 8) {
       setPasswordError('Mật khẩu mới phải có ít nhất 8 ký tự.')
@@ -126,19 +152,12 @@ export function ForgotPasswordPage() {
 
     setLoading(true)
     try {
-      await authService.resetPassword({
-        token: resetToken.trim(),
-        newPassword,
-      })
+      await authService.resetPassword({ resetSessionToken, newPassword })
       setLoading(false)
       setStep('success')
     } catch (err) {
       setLoading(false)
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        'Mã khôi phục không đúng hoặc đã hết hạn.'
-      setApiError(msg)
+      setApiError(extractApiErrorMessage(err, 'Không thể đặt lại mật khẩu. Phiên xác thực có thể đã hết hạn, vui lòng thực hiện lại từ đầu.'))
     }
   }
 
@@ -172,9 +191,9 @@ export function ForgotPasswordPage() {
                     Mẹo bảo mật tài khoản
                   </div>
                   <ul className="text-xs space-y-1.5 text-emerald-100/90 pl-1 list-disc list-inside">
+                    <li>Mã OTP gồm 6 chữ số, có hiệu lực trong 10 phút.</li>
                     <li>Sử dụng mật khẩu có từ 8 ký tự trở lên.</li>
-                    <li>Kết hợp chữ viết hoa và chữ số.</li>
-                    <li>Không chia sẻ mã khôi phục với người khác.</li>
+                    <li>Không chia sẻ mã OTP với người khác.</li>
                   </ul>
                 </div>
               </div>
@@ -207,7 +226,7 @@ export function ForgotPasswordPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">Quên mật khẩu?</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Nhập địa chỉ email đăng ký của bạn. Chúng tôi sẽ gửi hướng dẫn khôi phục mật khẩu.
+                    Nhập địa chỉ email đăng ký của bạn. Chúng tôi sẽ gửi mã OTP để xác thực.
                   </p>
                 </div>
 
@@ -254,7 +273,7 @@ export function ForgotPasswordPage() {
                     ) : (
                       <span className="flex items-center justify-center gap-2">
                         <Send className="size-4" />
-                        Gửi hướng dẫn khôi phục
+                        Gửi mã OTP
                       </span>
                     )}
                   </Button>
@@ -262,7 +281,7 @@ export function ForgotPasswordPage() {
               </div>
             )}
 
-            {/* STEP 2: SENT CONFIRMATION & OTP ENTRY */}
+            {/* STEP 2: OTP VERIFICATION */}
             {step === 'sent' && (
               <div className="animate-in fade-in zoom-in-95 space-y-5">
                 <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
@@ -270,52 +289,72 @@ export function ForgotPasswordPage() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">Đã gửi hướng dẫn!</h2>
+                  <h2 className="text-2xl font-bold text-foreground">Đã gửi mã OTP!</h2>
                   <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                    Chúng tôi đã gửi email hướng dẫn khôi phục tới địa chỉ{' '}
-                    <strong className="text-foreground">{email}</strong>.
+                    Chúng tôi đã gửi mã OTP gồm 6 chữ số tới địa chỉ{' '}
+                    <strong className="text-foreground">{email}</strong>. Mã có hiệu lực trong 10 phút.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
-                  <p className="text-xs font-semibold text-emerald-900 flex items-center gap-1.5">
-                    <KeyRound className="size-4 text-emerald-600" />
-                    Nhập mã khôi phục để tiếp tục:
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Nhập mã xác thực (VD: RESET123)"
-                    value={resetToken}
-                    onChange={(e) => setResetToken(e.target.value.toUpperCase())}
-                    className="w-full rounded-xl border border-emerald-300 bg-background px-3.5 py-2.5 font-mono text-sm font-bold uppercase tracking-widest text-emerald-950 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2.5">
-                  <Button
-                    onClick={() => {
-                      if (!resetToken.trim()) {
-                        setResetToken('RESET' + Math.floor(1000 + Math.random() * 9000))
-                      }
-                      setStep('reset')
-                    }}
-                    className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md shadow-emerald-600/20 rounded-xl"
-                  >
-                    Tiếp tục đặt lại mật khẩu
-                  </Button>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-muted-foreground">Chưa nhận được email?</span>
-                    <button
-                      type="button"
-                      disabled={resendTimer > 0 || loading}
-                      onClick={handleResend}
-                      className="text-xs font-semibold text-emerald-600 hover:underline disabled:opacity-50 disabled:no-underline"
-                    >
-                      {resendTimer > 0 ? `Gửi lại sau (${resendTimer}s)` : 'Gửi lại mã khôi phục'}
-                    </button>
+                {apiError && (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive">
+                    {apiError}
                   </div>
-                </div>
+                )}
+
+                <form className="space-y-4" onSubmit={handleVerifyOtpSubmit} noValidate>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-emerald-900 flex items-center gap-1.5">
+                      <KeyRound className="size-4 text-emerald-600" />
+                      Nhập mã OTP để tiếp tục:
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      disabled={loading}
+                      placeholder="000000"
+                      value={otpCode}
+                      onChange={(e) => {
+                        setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                        if (otpError) setOtpError('')
+                        if (apiError) setApiError('')
+                      }}
+                      className="w-full rounded-xl border border-emerald-300 bg-background px-3.5 py-2.5 text-center font-mono text-lg font-bold tracking-[0.4em] text-emerald-950 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                    />
+                    {otpError && <p className="text-xs font-medium text-destructive">{otpError}</p>}
+                  </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    <Button
+                      type="submit"
+                      disabled={loading || otpCode.length !== 6}
+                      className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md shadow-emerald-600/20 rounded-xl"
+                    >
+                      {loading ? (
+                        <span className="flex items-center gap-2">
+                          <RefreshCw className="size-4 animate-spin" />
+                          Đang xác thực...
+                        </span>
+                      ) : (
+                        'Xác thực mã OTP'
+                      )}
+                    </Button>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs text-muted-foreground">Chưa nhận được mã?</span>
+                      <button
+                        type="button"
+                        disabled={resendTimer > 0 || loading}
+                        onClick={handleResend}
+                        className="text-xs font-semibold text-emerald-600 hover:underline disabled:opacity-50 disabled:no-underline"
+                      >
+                        {resendTimer > 0 ? `Gửi lại sau (${resendTimer}s)` : 'Gửi lại mã OTP'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
             )}
 
@@ -336,23 +375,6 @@ export function ForgotPasswordPage() {
                 )}
 
                 <form className="mt-6 space-y-4" onSubmit={handleResetSubmit} noValidate>
-                  {/* Mã xác thực */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-                      Mã xác nhận (Reset Token)
-                    </label>
-                    <div className="flex items-center gap-2 rounded-xl border bg-background px-3.5 py-2.5">
-                      <KeyRound className="size-4 text-muted-foreground" />
-                      <input
-                        type="text"
-                        value={resetToken}
-                        onChange={(e) => setResetToken(e.target.value.toUpperCase())}
-                        placeholder="Mã xác thực từ email"
-                        className="w-full bg-transparent font-mono text-sm font-bold uppercase outline-none"
-                      />
-                    </div>
-                  </div>
-
                   {/* Mật khẩu mới */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
@@ -362,6 +384,7 @@ export function ForgotPasswordPage() {
                       <Lock className="size-4 text-muted-foreground" />
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        disabled={loading}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Mật khẩu mới (tối thiểu 8 ký tự)"
@@ -377,7 +400,7 @@ export function ForgotPasswordPage() {
                     </div>
                   </div>
 
-                  {/* Mật khẩu kế tiếp: Xác nhận */}
+                  {/* Xac nhan mat khau */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
                       Xác nhận mật khẩu mới
@@ -386,6 +409,7 @@ export function ForgotPasswordPage() {
                       <Lock className="size-4 text-muted-foreground" />
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
+                        disabled={loading}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Nhập lại mật khẩu mới"
@@ -475,7 +499,7 @@ export function ForgotPasswordPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">Đặt lại mật khẩu thành công!</h2>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Mật khẩu của bạn đã được cập nhật an toàn. Bây giờ bạn có thể sử dụng mật khẩu mới để đăng nhập.
+                    Mật khẩu của bạn đã được cập nhật an toàn. Tất cả phiên đăng nhập cũ đã bị thu hồi. Bây giờ bạn có thể sử dụng mật khẩu mới để đăng nhập.
                   </p>
                 </div>
 
