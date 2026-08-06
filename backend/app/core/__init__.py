@@ -33,8 +33,11 @@ from app.core.redis import (
     get_otp,
     get_otp_attempts,
     increment_otp_attempts,
+    is_token_valid,
+    revoke_all_user_tokens,
     save_otp,
     save_reset_token,
+    store_token,
 )
 from app.core.security import (
     create_access_token,
@@ -59,6 +62,9 @@ __all__ = [
     "save_reset_token",
     "get_email_by_reset_token",
     "delete_reset_token",
+    "store_token",
+    "is_token_valid",
+    "revoke_all_user_tokens",
     "MAX_OTP_ATTEMPTS",
     "AppException",
     "BadRequestException",

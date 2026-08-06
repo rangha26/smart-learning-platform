@@ -57,7 +57,10 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@smartlearning.com"
     SMTP_FROM_NAME: str = "Smart Learning Platform"
     OTP_EXPIRE_MINUTES: int = 10
-
+    SMTP_USE_SSL: bool = False
+    SMTP_USE_TLS: bool = True
+    
+    
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

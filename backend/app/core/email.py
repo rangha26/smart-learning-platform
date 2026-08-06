@@ -120,21 +120,11 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "") -> bool:
     Gửi Email chứa mã OTP qua SMTP Server.
     Nếu chưa cấu hình SMTP_USER hoặc SMTP_PASSWORD, hàm sẽ tự động in mã OTP ra Console log.
     """
-    # Nếu chưa cấu hình SMTP (Dev mode fallback)
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning(
-            f"⚠️ [SMTP NOT CONFIGURED] Mã OTP xác thực quên mật khẩu cho [{to_email}] là: >>> {otp_code} <<< (Hết hạn sau {settings.OTP_EXPIRE_MINUTES} phút)"
-        )
-        print(f"\n==========================================")
-        print(f"📧 [DEV EMAIL SIMULATOR] To: {to_email}")
-        print(f"🔑 OTP Code: {otp_code} (Valid for {settings.OTP_EXPIRE_MINUTES} mins)")
-        print(f"==========================================\n")
-        return True
 
     try:
         # Tạo đối tượng MIME Message
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = Header(f"[{otp_code}] Mã OTP đặt lại mật khẩu - Smart Learning Platform", "utf-8")
+        msg["Subject"] = Header("Mã OTP đặt lại mật khẩu - Smart Learning Platform", "utf-8")
         msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL or settings.SMTP_USER}>"
         msg["To"] = to_email
 
@@ -144,7 +134,11 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "") -> bool:
 
         # Kết nối tới SMTP Server (Khởi tạo kết nối TLS)
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USE_SSL:
+                server.connect(settings.SMTP_HOST, settings.SMTP_PORT)
+                server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
 
@@ -152,6 +146,4 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "") -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"❌ Lỗi gửi email qua SMTP tới {to_email}: {str(e)}", exc_info=True)
-        print(f"\n⚠️ [SMTP ERROR FALLBACK] OTP cho {to_email} là: {otp_code}\n")
         return False

@@ -66,7 +66,15 @@ class ForgotPasswordRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     """Schema cho Bước 2: API Xác thực mã OTP (/auth/verify-otp)"""
     email: EmailStr = Field(..., description="Email người dùng", example="student@example.com")
-    otp_code: str = Field(..., min_length=6, max_length=6, description="Mã OTP 6 chữ số", example="123456")
+    otp_code: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="Mã OTP gồm đúng 6 chữ số",
+        example="123456"
+    )
+
 
 
 class ResetPasswordRequest(BaseModel):

@@ -9,6 +9,7 @@ Module này chịu trách nhiệm:
 5. Hỗ trợ cơ chế Fallback tự động (In-Memory Dictionary Cache) nếu server Redis chưa bật.
 """
 
+import hashlib
 import logging
 import secrets
 import time
@@ -57,24 +58,48 @@ def generate_reset_session_token() -> str:
     return uuid.uuid4().hex
 
 
+def _hash_email(email: str) -> str:
+    """
+    Hash email thành chuỗi SHA-256 hex trước khi dùng làm Redis key.
+
+    Tỷ lệ giảm PII: email plaintext không bị lộ qua Redis dump, Redis UI,
+    Docker logs hoặc hệ thống monitoring.
+    """
+    return hashlib.sha256(email.lower().encode("utf-8")).hexdigest()
+
+
+# Lua script: atomic INCR + EXPIRE (chỉ đặt EXPIRE khi key được tạo lần đầu - value == 1)
+# Giải quyết race condition: INCR và EXPIRE không thể bị ngắt giữa chừng bởi request khác.
+# KEYS[1] = attempts_key, ARGV[1] = ttl_seconds
+_INCR_WITH_EXPIRE_LUA = """
+local val = redis.call('INCR', KEYS[1])
+if val == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return val
+"""
+
+
 # ==========================================
-# 1. QUẢN LÝ MÃ OTP VÀ SỐ LẦN THỬ SAI
+# 1. QUẢN LÝ MÃ OTP VÀ SỐ LẦN THỊ SAI
 # ==========================================
 
 def save_otp(email: str, otp_code: str, ttl_seconds: int = 600) -> bool:
     """
     Lưu mã OTP vào Redis Cache với TTL (mặc định 10 phút = 600s).
     Đồng thời reset số lần thử sai về 0.
+
+    Email được hash SHA-256 trước khi tạo key để tránh rò rỉ PII.
     """
-    email_clean = email.lower()
-    otp_key = f"otp:{email_clean}"
-    attempts_key = f"otp_attempts:{email_clean}"
+    email_hash = _hash_email(email)
+    otp_key = f"otp:{email_hash}"
+    attempts_key = f"otp_attempts:{email_hash}"
 
     try:
         if redis_client:
             redis_client.setex(otp_key, ttl_seconds, otp_code)
             redis_client.setex(attempts_key, ttl_seconds, "0")
-            logger.info(f"🔑 Đã lưu OTP vào Redis cho [{email_clean}] (TTL: {ttl_seconds}s)")
+            logger.info(f"🔑 Đã lưu OTP vào Redis (TTL: {ttl_seconds}s)")
             return True
     except Exception as e:
         logger.error(f"❌ Lỗi ghi OTP vào Redis: {e}. Chuyển sang In-Memory.")
@@ -88,8 +113,8 @@ def save_otp(email: str, otp_code: str, ttl_seconds: int = 600) -> bool:
 
 def get_otp(email: str) -> Optional[str]:
     """Lấy mã OTP từ Redis Cache hoặc In-Memory Store"""
-    email_clean = email.lower()
-    otp_key = f"otp:{email_clean}"
+    email_hash = _hash_email(email)
+    otp_key = f"otp:{email_hash}"
 
     try:
         if redis_client:
@@ -110,15 +135,25 @@ def get_otp(email: str) -> Optional[str]:
     return None
 
 
-def increment_otp_attempts(email: str) -> int:
-    """Tăng đếm số lần nhập sai mã OTP của Email và trả về số lần hiện tại"""
-    email_clean = email.lower()
-    attempts_key = f"otp_attempts:{email_clean}"
+def increment_otp_attempts(email: str, ttl_seconds: int = 600) -> int:
+    """
+    Tăng đếm số lần nhập sai mã OTP của Email và trả về số lần hiện tại.
+
+    Sử dụng Lua script atomic để INCR + đặt EXPIRE đồng thời, tránh race condition
+    khi nhiều request verify-otp xảy ra cùng lúc. TTL của attempts luôn khớp với TTL OTP.
+
+    Args:
+        email: Email người dùng.
+        ttl_seconds: TTL của attempts key, phải bằng TTL OTP (mặc định 600s).
+    """
+    email_hash = _hash_email(email)
+    attempts_key = f"otp_attempts:{email_hash}"
 
     try:
         if redis_client:
-            attempts = redis_client.incr(attempts_key)
-            return int(attempts)
+            # Lua script: INCR và EXPIRE cùng trong một thao tác atomic
+            result = redis_client.eval(_INCR_WITH_EXPIRE_LUA, 1, attempts_key, ttl_seconds)
+            return int(result)
     except Exception as e:
         logger.error(f"❌ Lỗi tăng attempts trên Redis: {e}")
 
@@ -130,8 +165,8 @@ def increment_otp_attempts(email: str) -> int:
 
 def get_otp_attempts(email: str) -> int:
     """Lấy số lần đã thử nhập sai OTP"""
-    email_clean = email.lower()
-    attempts_key = f"otp_attempts:{email_clean}"
+    email_hash = _hash_email(email)
+    attempts_key = f"otp_attempts:{email_hash}"
 
     try:
         if redis_client:
@@ -146,9 +181,9 @@ def get_otp_attempts(email: str) -> int:
 
 def delete_otp(email: str) -> bool:
     """Xóa mã OTP và số lần thử khỏi Redis Cache"""
-    email_clean = email.lower()
-    otp_key = f"otp:{email_clean}"
-    attempts_key = f"otp_attempts:{email_clean}"
+    email_hash = _hash_email(email)
+    otp_key = f"otp:{email_hash}"
+    attempts_key = f"otp_attempts:{email_hash}"
 
     try:
         if redis_client:
@@ -220,3 +255,119 @@ def delete_reset_token(token: str) -> bool:
         del _in_memory_store[token_key]
 
     return True
+
+
+# ==========================================
+# 3. TOKEN WHITELIST (JTI-based Revocation)
+# ==========================================
+# Cơ chế:
+#   - Mỗi token JWT được gắn một JTI (JWT ID) duy nhất khi phát hành.
+#   - JTI được lưu vào Redis với TTL bằng thời gian sống của token:
+#       * key `token_jti:{jti}` → user_id (để xác minh nhanh)
+#       * key `user_tokens:{user_id}` → Redis Set chứa tất cả JTI đang active
+#   - Khi xác thực request: kiểm tra `token_jti:{jti}` có tồn tại không.
+#   - Khi thu hồi (logout-all / đổi mật khẩu):
+#       * Lấy toàn bộ JTI từ `user_tokens:{user_id}`, xóa từng `token_jti:{jti}`.
+#       * Xóa luôn `user_tokens:{user_id}`.
+
+# In-Memory fallback cho token whitelist
+_token_whitelist: dict[str, str] = {}          # jti -> user_id
+_user_token_index: dict[str, set] = {}         # user_id -> set of jti
+
+
+def store_token(jti: str, user_id: int, ttl_seconds: int) -> bool:
+    """
+    Lưu JTI của token vào Redis whitelist khi phát hành token mới.
+
+    Args:
+        jti: JWT ID duy nhất của token.
+        user_id: ID người dùng sở hữu token.
+        ttl_seconds: Thời gian sống của token (giây), khớp với `exp` trong JWT.
+    """
+    jti_key = f"token_jti:{jti}"
+    user_set_key = f"user_tokens:{user_id}"
+    uid_str = str(user_id)
+
+    try:
+        if redis_client:
+            pipe = redis_client.pipeline()
+            # Lưu JTI → user_id với TTL bằng thời gian sống token
+            pipe.setex(jti_key, ttl_seconds, uid_str)
+            # Thêm JTI vào tập hợp của user; set TTL dài hơn để tập không bị xóa trước token
+            pipe.sadd(user_set_key, jti)
+            pipe.expire(user_set_key, ttl_seconds + 60)
+            pipe.execute()
+            logger.debug(f"🎟️ Đã lưu JTI [{jti[:8]}...] cho user [{user_id}] (TTL: {ttl_seconds}s)")
+            return True
+    except Exception as e:
+        logger.error(f"❌ Lỗi lưu token JTI vào Redis: {e}. Chuyển sang In-Memory.")
+
+    # Fallback In-Memory
+    _token_whitelist[jti_key] = uid_str
+    if uid_str not in _user_token_index:
+        _user_token_index[uid_str] = set()
+    _user_token_index[uid_str].add(jti)
+    return True
+
+
+def is_token_valid(jti: str) -> bool:
+    """
+    Kiểm tra token có còn hiệu lực trong whitelist không.
+
+    Returns:
+        True nếu JTI tồn tại trong Redis (token chưa bị thu hồi và chưa hết hạn).
+        False nếu JTI không tồn tại (đã bị xóa bởi logout-all / đổi mật khẩu, hoặc hết TTL).
+    """
+    jti_key = f"token_jti:{jti}"
+
+    try:
+        if redis_client:
+            return bool(redis_client.exists(jti_key))
+    except Exception as e:
+        logger.error(f"❌ Lỗi kiểm tra JTI trên Redis: {e}. Dùng In-Memory fallback.")
+
+    # Fallback In-Memory
+    return jti_key in _token_whitelist
+
+
+def revoke_all_user_tokens(user_id: int) -> int:
+    """
+    Thu hồi tất cả token đang active của một user (logout-all / đổi mật khẩu).
+
+    Xóa toàn bộ `token_jti:{jti}` thuộc user và xóa tập `user_tokens:{user_id}`.
+
+    Returns:
+        Số lượng JTI đã bị thu hồi.
+    """
+    uid_str = str(user_id)
+    user_set_key = f"user_tokens:{user_id}"
+    revoked_count = 0
+
+    try:
+        if redis_client:
+            # Lấy tất cả JTI thuộc user
+            jtis = redis_client.smembers(user_set_key)
+            if jtis:
+                # Xóa từng token_jti key
+                jti_keys = [f"token_jti:{jti}" for jti in jtis]
+                pipe = redis_client.pipeline()
+                for k in jti_keys:
+                    pipe.delete(k)
+                pipe.delete(user_set_key)
+                pipe.execute()
+                revoked_count = len(jtis)
+            else:
+                redis_client.delete(user_set_key)
+
+            logger.info(f"🚫 Đã thu hồi {revoked_count} token(s) của user [{user_id}]")
+            return revoked_count
+    except Exception as e:
+        logger.error(f"❌ Lỗi thu hồi token trên Redis: {e}. Dùng In-Memory fallback.")
+
+    # Fallback In-Memory
+    jtis_local = _user_token_index.pop(uid_str, set())
+    for jti in jtis_local:
+        _token_whitelist.pop(f"token_jti:{jti}", None)
+    revoked_count = len(jtis_local)
+    logger.info(f"🚫 [In-Memory] Đã thu hồi {revoked_count} token(s) của user [{user_id}]")
+    return revoked_count
