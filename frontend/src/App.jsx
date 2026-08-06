@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
-import { ProtectedRoute, getRoleHomePath } from '@/components/auth/ProtectedRoute'
-import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { getRoleHomePath } from '@/components/auth/rolePaths'
+import { AuthProvider } from '@/context/AuthContext'
+import { useAuth } from '@/context/useAuth'
 
 // Layouts
 import { AdminLayout } from '@/layouts/AdminLayout'

@@ -1,16 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
-
-export function getRoleHomePath(role) {
-  const normalized = (role || '').toUpperCase()
-  if (normalized === 'ADMIN') {
-    return '/admin'
-  }
-  if (normalized === 'INSTRUCTOR' || normalized === 'TEACHER') {
-    return '/teacher'
-  }
-  return '/student'
-}
+import { getRoleHomePath } from '@/components/auth/rolePaths'
+import { useAuth } from '@/context/useAuth'
 
 export function ProtectedRoute({ allowedRoles }) {
   const { user, isAuthenticated } = useAuth()

@@ -14,8 +14,8 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { getRoleHomePath } from '@/components/auth/ProtectedRoute'
-import { useAuth } from '@/context/AuthContext'
+import { getRoleHomePath } from '@/components/auth/rolePaths'
+import { useAuth } from '@/context/useAuth'
 
 const initialValues = {
   fullName: '',
@@ -105,6 +105,7 @@ export function RegisterPage() {
       navigate(targetPath, { replace: true })
     } catch (err) {
       const msg =
+        err.response?.data?.error?.message ||
         err.response?.data?.detail ||
         err.response?.data?.message ||
         'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin và thử lại.'
