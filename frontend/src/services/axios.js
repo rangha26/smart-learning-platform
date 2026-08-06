@@ -66,9 +66,12 @@ apiClient.interceptors.response.use(
     // Chỉ xử lý lỗi 401 và bỏ qua request refresh (tránh vòng lặp vô hạn)
     const is401 = error.response?.status === 401
     const isRefreshEndpoint = originalRequest.url?.includes('/auth/refresh')
+    const isPublicAuthEndpoint = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'].some(
+      (path) => originalRequest.url?.includes(path),
+    )
     const alreadyRetried = originalRequest._retry
 
-    if (!is401 || isRefreshEndpoint || alreadyRetried) {
+    if (!is401 || isRefreshEndpoint || isPublicAuthEndpoint || alreadyRetried) {
       return Promise.reject(error)
     }
 
