@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
+  Archive,
   ArrowLeft,
   BookOpen,
   CheckSquare,
@@ -7,7 +8,12 @@ import {
   ClipboardList,
   Clock,
   Crown,
+  Download,
+  Eye,
+  FileAudio,
+  FileImage,
   FileText,
+  FileVideo,
   GraduationCap,
   Image,
   Key,
@@ -16,8 +22,10 @@ import {
   Pin,
   Send,
   Star,
+  Upload,
   Users,
   Video,
+  X,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -151,12 +159,160 @@ function Avatar({ initials, size = 'md', ring = false }) {
   )
 }
 
+// ─── File type helpers ────────────────────────────────────────────────────────
+function getFileCategory(file) {
+  const type = file.type || ''
+  if (type.startsWith('image/')) return 'image'
+  if (type.startsWith('video/')) return 'video'
+  if (type.startsWith('audio/')) return 'audio'
+  if (type === 'application/pdf' || type.includes('word') || type.includes('document')) return 'doc'
+  if (type.includes('zip') || type.includes('rar') || type.includes('compressed')) return 'archive'
+  return 'file'
+}
+
+function FileTypeIcon({ category, className = 'size-5' }) {
+  const icons = {
+    image: <FileImage className={`${className} text-emerald-500`} />,
+    video: <FileVideo className={`${className} text-violet-500`} />,
+    audio: <FileAudio className={`${className} text-amber-500`} />,
+    doc:   <FileText  className={`${className} text-blue-500`} />,
+    archive: <Archive className={`${className} text-orange-500`} />,
+    file:  <FileText  className={`${className} text-indigo-500`} />,
+  }
+  return icons[category] ?? icons.file
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
+}
+
+// ─── Attachment preview chip ──────────────────────────────────────────────────
+function AttachmentChip({ file, onRemove, preview }) {
+  const cat = getFileCategory(file)
+  return (
+    <div className="group relative flex items-center gap-2.5 rounded-xl border border-border/70 bg-muted/40 px-3 py-2 text-sm hover:border-indigo-200 hover:bg-indigo-50/40 transition-all">
+      {/* Image thumbnail */}
+      {cat === 'image' && preview ? (
+        <img
+          src={preview}
+          alt={file.name}
+          className="size-9 rounded-lg object-cover shrink-0 border border-border/50"
+        />
+      ) : (
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background border border-border/50">
+          <FileTypeIcon category={cat} className="size-4" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-foreground max-w-[150px]">{file.name}</p>
+        <p className="text-[11px] text-muted-foreground">{formatBytes(file.size)}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted/80 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 transition-all"
+        title="Xóa tệp"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  )
+}
+
+// ─── Drop zone ────────────────────────────────────────────────────────────────
+function DropZone({ onFiles }) {
+  const [dragging, setDragging] = useState(false)
+  const inputRef = useRef(null)
+
+  const processFiles = (files) => {
+    const arr = Array.from(files)
+    if (arr.length) onFiles(arr)
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); processFiles(e.dataTransfer.files) }}
+      onClick={() => inputRef.current?.click()}
+      className={`group cursor-pointer rounded-xl border-2 border-dashed px-5 py-4 text-center transition-all ${
+        dragging
+          ? 'border-indigo-500 bg-indigo-50/60 scale-[1.01]'
+          : 'border-border/50 bg-muted/20 hover:border-indigo-400 hover:bg-indigo-50/30'
+      }`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => processFiles(e.target.files)}
+      />
+      <Upload className={`mx-auto mb-1.5 size-5 transition-colors ${
+        dragging ? 'text-indigo-600' : 'text-muted-foreground/60 group-hover:text-indigo-500'
+      }`} />
+      <p className="text-xs font-medium text-muted-foreground">
+        {dragging ? 'Thả tệp vào đây…' : 'Kéo & thả hoặc nhấn để chọn tệp'}
+      </p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground/60">Hình ảnh, video, PDF, và các loại khác</p>
+    </div>
+  )
+}
+
+// ─── Attachment badge (in posted messages) ────────────────────────────────────
+function PostAttachment({ att }) {
+  const catMap = {
+    pdf: 'doc', image: 'image', video: 'video', audio: 'audio', archive: 'archive',
+  }
+  const cat = catMap[att.type] ?? 'file'
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3 py-2.5 text-sm hover:bg-muted/70 transition-colors cursor-pointer group">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background border border-border/50">
+        <FileTypeIcon category={cat} className="size-4" />
+      </div>
+      <span className="font-medium text-foreground text-xs flex-1 truncate">{att.name}</span>
+      <Download className="size-3.5 text-muted-foreground/50 group-hover:text-indigo-600 transition-colors shrink-0" />
+    </div>
+  )
+}
+
 // ─── Tab: Bảng tin ────────────────────────────────────────────────────────────
 function BangTinTab() {
   const [newPost, setNewPost] = useState('')
   const [posts, setPosts] = useState(POSTS)
   const [expandedComments, setExpandedComments] = useState({})
   const [commentInputs, setCommentInputs] = useState({})
+  const [attachedFiles, setAttachedFiles] = useState([])   // { file, preview }
+  const [showDropZone, setShowDropZone] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const addFiles = (files) => {
+    const newItems = files.map((file) => {
+      const isImage = file.type.startsWith('image/')
+      const preview = isImage ? URL.createObjectURL(file) : null
+      return { file, preview, id: `${file.name}-${Date.now()}-${Math.random()}` }
+    })
+    setAttachedFiles((prev) => [...prev, ...newItems])
+    setShowDropZone(false)
+  }
+
+  const removeFile = (id) => {
+    setAttachedFiles((prev) => {
+      const item = prev.find((f) => f.id === id)
+      if (item?.preview) URL.revokeObjectURL(item.preview)
+      return prev.filter((f) => f.id !== id)
+    })
+  }
+
+  const handleClearAll = () => {
+    attachedFiles.forEach((f) => { if (f.preview) URL.revokeObjectURL(f.preview) })
+    setAttachedFiles([])
+    setShowDropZone(false)
+  }
 
   const toggleComments = (postId) =>
     setExpandedComments((prev) => ({ ...prev, [postId]: !prev[postId] }))
@@ -181,7 +337,19 @@ function BangTinTab() {
   }
 
   const handlePost = () => {
-    if (!newPost.trim()) return
+    if (!newPost.trim() && attachedFiles.length === 0) return
+    const fileAttachments = attachedFiles.map(({ file }) => ({
+      name: file.name,
+      type: file.type.startsWith('image/')
+        ? 'image'
+        : file.type.startsWith('video/')
+        ? 'video'
+        : file.type.startsWith('audio/')
+        ? 'audio'
+        : file.type.includes('pdf')
+        ? 'pdf'
+        : 'file',
+    }))
     setPosts((prev) => [
       {
         id: Date.now(),
@@ -190,72 +358,217 @@ function BangTinTab() {
         role: 'student',
         time: 'Vừa xong',
         content: newPost,
-        attachments: [],
+        attachments: fileAttachments,
         comments: [],
         pinned: false,
       },
       ...prev,
     ])
     setNewPost('')
+    handleClearAll()
   }
+
+  const canPost = newPost.trim().length > 0 || attachedFiles.length > 0
 
   return (
     <div className="space-y-5">
-      {/* Post Composer */}
-      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-        <div className="flex items-start gap-3">
-          <Avatar initials="BN" />
-          <div className="flex-1 space-y-3">
-            <textarea
-              rows={3}
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              placeholder="Thông báo gì đó với cả lớp..."
-              className="w-full resize-none rounded-xl border border-input bg-muted/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-            />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  title="Đính kèm tệp"
-                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-indigo-600 transition-colors"
-                >
-                  <Paperclip className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  title="Thêm hình ảnh"
-                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-indigo-600 transition-colors"
-                >
-                  <Image className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  title="Video"
-                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-indigo-600 transition-colors"
-                >
-                  <Video className="size-4" />
-                </button>
-              </div>
-              <Button
-                onClick={handlePost}
-                disabled={!newPost.trim()}
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs shadow-indigo-600/30 gap-2 disabled:opacity-40"
-              >
-                <Send className="size-3.5" />
-                Đăng
-              </Button>
+      {/* ── Post Composer ── */}
+      <div className="rounded-2xl border border-border/70 bg-card shadow-xs overflow-hidden">
+        {/* Top section */}
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <Avatar initials="BN" />
+            <div className="flex-1 space-y-3">
+              <textarea
+                rows={3}
+                value={newPost}
+                onChange={(e) => setNewPost(e.target.value)}
+                placeholder="Thông báo gì đó với cả lớp..."
+                className="w-full resize-none rounded-xl border border-input bg-muted/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              />
             </div>
           </div>
         </div>
+
+        {/* ── Attached files preview ── */}
+        {attachedFiles.length > 0 && (
+          <div className="border-t border-border/50 bg-muted/10 px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">
+                {attachedFiles.length} tệp đính kèm
+              </span>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-[11px] text-muted-foreground hover:text-red-500 transition-colors"
+              >
+                Xóa tất cả
+              </button>
+            </div>
+
+            {/* Image grid preview (if any images) */}
+            {(() => {
+              const imgs = attachedFiles.filter((f) => f.preview)
+              const others = attachedFiles.filter((f) => !f.preview)
+              return (
+                <>
+                  {imgs.length > 0 && (
+                    <div
+                      className={`gap-2 mb-2 ${
+                        imgs.length === 1
+                          ? 'flex'
+                          : imgs.length === 2
+                          ? 'grid grid-cols-2'
+                          : 'grid grid-cols-3'
+                      }`}
+                    >
+                      {imgs.map((item) => (
+                        <div key={item.id} className="group relative rounded-xl overflow-hidden border border-border/50 aspect-video bg-muted/40">
+                          <img
+                            src={item.preview}
+                            alt={item.file.name}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                            <a
+                              href={item.preview}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex size-7 items-center justify-center rounded-full bg-white/90 text-foreground hover:bg-white transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Eye className="size-3.5" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(item.id)}
+                              className="flex size-7 items-center justify-center rounded-full bg-white/90 text-foreground hover:bg-red-100 hover:text-red-600 transition-colors"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </div>
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 hidden group-hover:block">
+                            <p className="truncate rounded-lg bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                              {item.file.name}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {others.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {others.map((item) => (
+                        <AttachmentChip
+                          key={item.id}
+                          file={item.file}
+                          preview={item.preview}
+                          onRemove={() => removeFile(item.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── Drop zone (shown when toggled) ── */}
+        {showDropZone && (
+          <div className="border-t border-border/50 bg-muted/10 px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground">Thêm tệp đính kèm</span>
+              <button
+                type="button"
+                onClick={() => setShowDropZone(false)}
+                className="rounded-md p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <DropZone onFiles={addFiles} />
+          </div>
+        )}
+
+        {/* ── Composer toolbar ── */}
+        <div className="border-t border-border/50 bg-muted/5 px-4 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5">
+            {/* File picker */}
+            <button
+              type="button"
+              title="Đính kèm tệp"
+              onClick={() => { setShowDropZone((v) => !v) }}
+              className={`rounded-lg p-2 transition-colors ${
+                showDropZone
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'text-muted-foreground hover:bg-muted hover:text-indigo-600'
+              }`}
+            >
+              <Paperclip className="size-4" />
+            </button>
+
+            {/* Image quick-pick */}
+            <button
+              type="button"
+              title="Chọn hình ảnh"
+              onClick={() => {
+                const inp = document.createElement('input')
+                inp.type = 'file'
+                inp.accept = 'image/*'
+                inp.multiple = true
+                inp.onchange = (e) => addFiles(Array.from(e.target.files))
+                inp.click()
+              }}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-indigo-600 transition-colors"
+            >
+              <Image className="size-4" />
+            </button>
+
+            {/* Video quick-pick */}
+            <button
+              type="button"
+              title="Chọn video"
+              onClick={() => {
+                const inp = document.createElement('input')
+                inp.type = 'file'
+                inp.accept = 'video/*'
+                inp.multiple = true
+                inp.onchange = (e) => addFiles(Array.from(e.target.files))
+                inp.click()
+              }}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-indigo-600 transition-colors"
+            >
+              <Video className="size-4" />
+            </button>
+
+            {attachedFiles.length > 0 && (
+              <span className="ml-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                {attachedFiles.length}
+              </span>
+            )}
+          </div>
+
+          <Button
+            onClick={handlePost}
+            disabled={!canPost}
+            size="sm"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs shadow-indigo-600/30 gap-2 disabled:opacity-40"
+          >
+            <Send className="size-3.5" />
+            Đăng
+          </Button>
+        </div>
       </div>
 
-      {/* Posts List */}
+      {/* ── Posts List ── */}
       {posts.map((post) => (
         <article
           key={post.id}
-          className={`rounded-2xl border bg-card shadow-xs transition-all hover:shadow-md ${post.pinned ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-border/70'}`}
+          className={`rounded-2xl border bg-card shadow-xs transition-all hover:shadow-md ${
+            post.pinned ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-border/70'
+          }`}
         >
           {post.pinned && (
             <div className="flex items-center gap-1.5 rounded-t-2xl bg-indigo-50 px-4 py-1.5 text-xs font-semibold text-indigo-700 border-b border-indigo-100">
@@ -289,18 +602,14 @@ function BangTinTab() {
               </button>
             </div>
 
-            <p className="mt-4 text-sm leading-relaxed text-foreground whitespace-pre-line">{post.content}</p>
+            {post.content && (
+              <p className="mt-4 text-sm leading-relaxed text-foreground whitespace-pre-line">{post.content}</p>
+            )}
 
             {post.attachments.length > 0 && (
               <div className="mt-3 space-y-2">
                 {post.attachments.map((att) => (
-                  <div
-                    key={att.name}
-                    className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3 py-2.5 text-sm hover:bg-muted/70 transition-colors cursor-pointer"
-                  >
-                    <FileText className="size-4 text-indigo-600 shrink-0" />
-                    <span className="font-medium text-foreground">{att.name}</span>
-                  </div>
+                  <PostAttachment key={att.name} att={att} />
                 ))}
               </div>
             )}
