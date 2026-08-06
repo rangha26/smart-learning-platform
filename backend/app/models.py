@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -41,11 +42,6 @@ class SubmissionState(str, enum.Enum):
     LATE = "LATE"
 
 
-# ---------------------------------------------------------------------
-# 1. users
-# ---------------------------------------------------------------------
-from sqlalchemy import Integer
-
 class User(Base):
     __tablename__ = "users"
 
@@ -75,7 +71,7 @@ class User(Base):
 class Class(Base):
     __tablename__ = "classes"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
@@ -99,7 +95,7 @@ class ClassEnrollment(Base):
     __tablename__ = "class_enrollments"
     __table_args__ = (UniqueConstraint("class_id", "student_id", name="uq_class_student"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
     student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -114,7 +110,7 @@ class ClassEnrollment(Base):
 class Post(Base):
     __tablename__ = "posts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"))
     author_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -132,7 +128,7 @@ class Post(Base):
 class Attachment(Base):
     __tablename__ = "attachments"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("posts.id", ondelete="CASCADE"))
     file_url: Mapped[str] = mapped_column(String(500), nullable=False)
     file_name: Mapped[str | None] = mapped_column(String(255))
@@ -148,7 +144,7 @@ class Attachment(Base):
 class Comment(Base):
     __tablename__ = "comments"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("posts.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -164,7 +160,7 @@ class Comment(Base):
 class Assignment(Base):
     __tablename__ = "assignments"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -184,7 +180,7 @@ class Submission(Base):
     __tablename__ = "submissions"
     __table_args__ = (UniqueConstraint("assignment_id", "student_id", name="uq_assignment_student"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     assignment_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("assignments.id", ondelete="CASCADE"))
     student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
     file_url: Mapped[str] = mapped_column(String(500), nullable=False)
