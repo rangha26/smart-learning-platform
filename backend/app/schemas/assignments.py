@@ -18,7 +18,7 @@ class AssignmentResponse(BaseModel):
     due_date: datetime
     max_score: float
     file_url: Optional[str] = None
-    updated_at: datetime
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
