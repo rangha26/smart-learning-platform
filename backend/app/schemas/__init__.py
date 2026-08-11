@@ -26,6 +26,12 @@ from app.schemas.dashboard import (
     TeacherDashboardResponse,
     UpcomingAssignmentSummary,
 )
+from app.schemas.posts import (
+    CommentCreateRequest,
+    CommentResponse,
+    PostCreateRequest,
+    PostResponse,
+)
 
 __all__ = [
     "RegisterRequest",
@@ -50,4 +56,8 @@ __all__ = [
     "UpcomingAssignmentSummary",
     "TeacherDashboardResponse",
     "StudentDashboardResponse",
+    "PostCreateRequest",
+    "PostResponse",
+    "CommentCreateRequest",
+    "CommentResponse",
 ]
