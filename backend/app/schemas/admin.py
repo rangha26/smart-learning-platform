@@ -16,3 +16,11 @@ class UserAdminResponse(BaseModel):
 
 class UserStatusUpdateRequest(BaseModel):
     status: UserStatus
+
+class UserListAssignmentsResponse(BaseModel):
+    total_count: int
+    page: int
+    page_size: int
+    users: List[UserAdminResponse]
+
+    model_config = ConfigDict(from_attributes=True)
