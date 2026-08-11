@@ -36,3 +36,16 @@ class SubmissionResponse(BaseModel):
     feedback: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class GradeSubmissionRequest(BaseModel):
+    grade: float = Field(..., ge=0, description="Điểm số của bài nộp")
+    feedback: Optional[str] = Field(None, description="Phản hồi cho bài nộp")
+
+class AssignmentStatsResponse(BaseModel):
+    assignment_title: str
+    total_students: int
+    submitted_count: int
+    not_submitted_count: int
+    details: dict
+
+    model_config = ConfigDict(from_attributes=True)

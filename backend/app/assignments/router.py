@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from app.db import get_db
 from app.models import Assignment, User, UserRole, Class, Submission, SubmissionState, ClassEnrollment
 from app.auth.dependencies import get_current_user, require_roles
 from app.core import ForbiddenException, NotFoundException
-from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, SubmissionCreateRequest, SubmissionResponse
+from app.schemas import MessageResponse
+from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
+from app.schemas.admin import UserListAssignmentsResponse
 from app.classes.router import _get_class_or_404
 from datetime import datetime, timezone
+from typing import Optional
 
 router = APIRouter(
     prefix="/assignments",
@@ -101,3 +104,126 @@ def get_submissions(assignment_id: int, db: Session = Depends(get_db), current_u
         raise ForbiddenException(detail="Bạn không có quyền xem danh sách nộp bài tập cho lớp học này.")
     submissions = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
     return submissions
+
+@router.delete("/{assignment_id}/unsubmit", response_model=MessageResponse, summary="Hủy nộp bài tập (chỉ dành cho sinh viên)")
+def unsubmit_assignment(assignment_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.STUDENT))):
+    """
+    Hủy nộp bài tập cho một bài tập cụ thể.
+    Chỉ sinh viên đã nộp bài tập mới có quyền hủy nộp.
+    """
+    # Kiểm tra xem bài tập có tồn tại không
+    submission = db.query(Submission).filter(Submission.assignment_id == assignment_id, Submission.student_id == current_user.id).first()
+
+    # Kiểm tra xem sinh viên đã nộp bài tập chưa
+    if not submission:
+        raise NotFoundException(detail="Bạn chưa nộp bài tập này hoặc bài tập không tồn tại.")
+
+    # Kiểm tra xem bài tập đã được chấm điểm chưa
+    if submission.grade is not None:
+        raise ForbiddenException(detail="Bạn không thể hủy nộp bài tập đã được chấm điểm.")
+
+    # Hủy nộp bài tập
+    db.delete(submission)
+    db.commit()
+
+    return MessageResponse(message="Hủy nộp bài tập thành công.")
+
+@router.get("", response_model=UserListAssignmentsResponse, summary="Lấy danh sách bài tập của người dùng hiện tại")
+def list_users(search: Optional[str] = Query(None), role: Optional[UserRole] = None, page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
+    """
+    Lấy danh sách bài tập của người dùng hiện tại.
+    Chỉ admin mới có quyền truy cập.
+    """
+    query = db.query(User)
+
+    if search:
+        query = query.filter(or_(User.email.ilike(f"%{search}%"), User.full_name.ilike(f"%{search}%")))
+    if role:
+        query = query.filter(User.role == role)
+
+    total_count = query.count()
+
+    users = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    return UserListAssignmentsResponse(
+        total_count=total_count,
+        page=page,
+        page_size=page_size,
+        users=users
+    )
+
+@router.patch("/submissions/{submission_id}/grade", response_model=SubmissionResponse, summary="Chấm điểm bài nộp (chỉ dành cho giáo viên)")
+def grade_submission(submission_id: int, grade_request: GradeSubmissionRequest, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.INSTRUCTOR))):
+    """
+    Chấm điểm cho một bài nộp cụ thể.
+    Chỉ giáo viên của lớp học mới có quyền chấm điểm.
+    """
+    # Kiểm tra xem bài nộp có tồn tại không
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise NotFoundException(detail="Bài nộp không tồn tại.")
+
+    # Kiểm tra xem giáo viên có quyền chấm điểm bài nộp này không
+    assignment = db.query(Assignment).filter(Assignment.id == submission.assignment_id).first()
+    classroom = db.query(Class).filter(Class.id == assignment.class_id).first()
+    if classroom.instructor_id != current_user.id:
+        raise ForbiddenException(detail="Bạn không có quyền chấm điểm bài nộp này.")
+
+    # Kiểm tra xem điểm số có vượt quá điểm tối đa của bài tập không
+    if grade_request.grade > assignment.max_score:
+        raise ForbiddenException(detail=f"Điểm số không được vượt quá {assignment.max_score}.")
+
+    # Cập nhật điểm và phản hồi
+    submission.grade = grade_request.grade
+    submission.feedback = grade_request.feedback
+    db.commit()
+    db.refresh(submission)
+
+    return submission
+
+@router.get("/{assignment_id}/my-submission", response_model=SubmissionResponse, summary="Lấy bài nộp của sinh viên cho một bài tập cụ thể")
+def get_my_submission(assignment_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.STUDENT))):
+    """
+    Lấy bài nộp của sinh viên cho một bài tập cụ thể.
+    Chỉ sinh viên đã nộp bài tập mới có quyền xem bài nộp của mình.
+    """
+    # Kiểm tra xem bài tập có tồn tại không
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise NotFoundException(detail="Bài tập không tồn tại.")
+
+    # Kiểm tra xem sinh viên đã nộp bài tập chưa
+    submission = db.query(Submission).filter(Submission.assignment_id == assignment_id, Submission.student_id == current_user.id).first()
+    if not submission:
+        raise NotFoundException(detail="Bạn chưa nộp bài tập này.")
+
+    return submission
+
+@router.get("/{assignment_id}/stats", response_model=AssignmentStatsResponse, summary="Lấy thống kê nộp bài tập cho một bài tập cụ thể (chỉ dành cho giáo viên)")
+def get_assignment_stats(assignment_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.INSTRUCTOR))):
+    """
+    Lấy thống kê nộp bài tập cho một bài tập cụ thể.
+    Chỉ giáo viên của lớp học mới có quyền xem thống kê.
+    """
+    # Kiểm tra xem bài tập có tồn tại không
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise NotFoundException(detail="Bài tập không tồn tại.")
+
+    # Kiểm tra xem giáo viên có quyền xem thống kê bài tập này không
+    stats = db.query(Submission.status, func.count(Submission.id).label("count")).filter(Submission.assignment_id == assignment_id).group_by(Submission.status).all()
+
+    total_students = db.query(func.count(ClassEnrollment.id)).filter(ClassEnrollment.class_id == assignment.class_id).scalar() or 0
+
+    result = {
+        status.value: count for status, count in stats
+    }
+    submitted_count = sum(result.values())
+
+    return AssignmentStatsResponse(
+        assignment_title=assignment.title,
+        total_students=total_students,
+        submitted_count=submitted_count,
+        not_submitted_count=total_students - submitted_count,
+        details=result
+    )
