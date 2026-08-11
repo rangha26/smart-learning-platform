@@ -10,6 +10,8 @@ from app.core import (
     setup_cors,
     setup_request_logging_middleware,
 )
+from app.assignments.router import router as assignments_router
+from app.admin.router import router as admin_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -30,6 +32,8 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(classes_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(posts_router, prefix="/api/v1")
+app.include_router(assignments_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 @app.get("/")
