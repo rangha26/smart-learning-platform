@@ -29,7 +29,7 @@ def create_assignment(class_id: int, assignment_request: AssignmentCreateRequest
 
     # Kiểm tra quyền của người dùng hiện tại
     if class_instance.instructor_id != current_user.id:
-        raise ForbiddenException(detail="Bạn không có quyền tạo bài tập cho lớp học này.")
+        raise ForbiddenException(message="Bạn không có quyền tạo bài tập cho lớp học này.")
 
     # Tạo bài tập mới
     new_assignment = Assignment(
@@ -55,12 +55,12 @@ def submit_assignment(assignment_id: int, submission_request: SubmissionCreateRe
     # Kiểm tra xem bài tập có tồn tại không
     assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not assignment:
-        raise NotFoundException(detail="Bài tập không tồn tại.")
+        raise NotFoundException(message="Bài tập không tồn tại.")
 
     # Kiểm tra xem sinh viên có đăng ký lớp học không
     enrollment = db.query(ClassEnrollment).filter(ClassEnrollment.class_id == assignment.class_id, ClassEnrollment.student_id == current_user.id).first()
     if not enrollment:
-        raise ForbiddenException(detail="Bạn không có quyền nộp bài tập cho lớp học này.")
+        raise ForbiddenException(message="Bạn không có quyền nộp bài tập cho lớp học này.")
 
     # Kiểm tra xem sinh viên đã nộp bài tập chưa
     existing_submission = db.query(Submission).filter(Submission.assignment_id == assignment_id, Submission.student_id == current_user.id).first()
@@ -96,12 +96,12 @@ def get_submissions(assignment_id: int, db: Session = Depends(get_db), current_u
     # Kiểm tra xem bài tập có tồn tại không
     assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not assignment:
-        raise NotFoundException(detail="Bài tập không tồn tại.")
+        raise NotFoundException(message="Bài tập không tồn tại.")
 
     # Kiểm tra quyền của người dùng hiện tại
     classroom = db.query(Class).filter(Class.id == assignment.class_id).first()
     if classroom.instructor_id != current_user.id:
-        raise ForbiddenException(detail="Bạn không có quyền xem danh sách nộp bài tập cho lớp học này.")
+        raise ForbiddenException(message="Bạn không có quyền xem danh sách nộp bài tập cho lớp học này.")
     submissions = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
     return submissions
 
@@ -116,11 +116,11 @@ def unsubmit_assignment(assignment_id: int, db: Session = Depends(get_db), curre
 
     # Kiểm tra xem sinh viên đã nộp bài tập chưa
     if not submission:
-        raise NotFoundException(detail="Bạn chưa nộp bài tập này hoặc bài tập không tồn tại.")
+        raise NotFoundException(message="Bạn chưa nộp bài tập này hoặc bài tập không tồn tại.")
 
     # Kiểm tra xem bài tập đã được chấm điểm chưa
     if submission.grade is not None:
-        raise ForbiddenException(detail="Bạn không thể hủy nộp bài tập đã được chấm điểm.")
+        raise ForbiddenException(message="Bạn không thể hủy nộp bài tập đã được chấm điểm.")
 
     # Hủy nộp bài tập
     db.delete(submission)
@@ -161,17 +161,17 @@ def grade_submission(submission_id: int, grade_request: GradeSubmissionRequest, 
     # Kiểm tra xem bài nộp có tồn tại không
     submission = db.query(Submission).filter(Submission.id == submission_id).first()
     if not submission:
-        raise NotFoundException(detail="Bài nộp không tồn tại.")
+        raise NotFoundException(message="Bài nộp không tồn tại.")
 
     # Kiểm tra xem giáo viên có quyền chấm điểm bài nộp này không
     assignment = db.query(Assignment).filter(Assignment.id == submission.assignment_id).first()
     classroom = db.query(Class).filter(Class.id == assignment.class_id).first()
     if classroom.instructor_id != current_user.id:
-        raise ForbiddenException(detail="Bạn không có quyền chấm điểm bài nộp này.")
+        raise ForbiddenException(message="Bạn không có quyền chấm điểm bài nộp này.")
 
     # Kiểm tra xem điểm số có vượt quá điểm tối đa của bài tập không
     if grade_request.grade > assignment.max_score:
-        raise ForbiddenException(detail=f"Điểm số không được vượt quá {assignment.max_score}.")
+        raise ForbiddenException(message=f"Điểm số không được vượt quá {assignment.max_score}.")
 
     # Cập nhật điểm và phản hồi
     submission.grade = grade_request.grade
@@ -190,12 +190,12 @@ def get_my_submission(assignment_id: int, db: Session = Depends(get_db), current
     # Kiểm tra xem bài tập có tồn tại không
     assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not assignment:
-        raise NotFoundException(detail="Bài tập không tồn tại.")
+        raise NotFoundException(message="Bài tập không tồn tại.")
 
     # Kiểm tra xem sinh viên đã nộp bài tập chưa
     submission = db.query(Submission).filter(Submission.assignment_id == assignment_id, Submission.student_id == current_user.id).first()
     if not submission:
-        raise NotFoundException(detail="Bạn chưa nộp bài tập này.")
+        raise NotFoundException(message="Bạn chưa nộp bài tập này.")
 
     return submission
 
@@ -208,7 +208,7 @@ def get_assignment_stats(assignment_id: int, db: Session = Depends(get_db), curr
     # Kiểm tra xem bài tập có tồn tại không
     assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not assignment:
-        raise NotFoundException(detail="Bài tập không tồn tại.")
+        raise NotFoundException(message="Bài tập không tồn tại.")
 
     # Kiểm tra xem giáo viên có quyền xem thống kê bài tập này không
     stats = db.query(Submission.status, func.count(Submission.id).label("count")).filter(Submission.assignment_id == assignment_id).group_by(Submission.status).all()

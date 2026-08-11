@@ -39,12 +39,12 @@ def update_user_status(user_id: int, status_update: UserStatusUpdateRequest, db:
     Chỉ admin mới có quyền truy cập.
     """
     if user_id == current_admin.id:
-        raise BadRequestException(detail="Admin không thể thay đổi trạng thái của chính mình.")
+        raise BadRequestException(message="Admin không thể thay đổi trạng thái của chính mình.")
 
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
-        raise NotFoundException(detail="Người dùng không tồn tại.")
+        raise NotFoundException(message="Người dùng không tồn tại.")
 
     user.status = status_update.status
     db.commit()
