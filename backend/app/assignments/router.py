@@ -1,16 +1,14 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, select
+from sqlalchemy import func
 from app.db import get_db
 from app.models import Assignment, User, UserRole, Class, Submission, SubmissionState, ClassEnrollment
 from app.auth.dependencies import get_current_user, require_roles
 from app.core import ForbiddenException, NotFoundException
 from app.schemas import MessageResponse
-from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
-from app.schemas.admin import UserListAssignmentsResponse
+from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
 from app.classes.router import _get_class_or_404
 from datetime import datetime, timezone
-from typing import Optional
 
 router = APIRouter(
     prefix="/assignments",
@@ -128,28 +126,32 @@ def unsubmit_assignment(assignment_id: int, db: Session = Depends(get_db), curre
 
     return MessageResponse(message="Hủy nộp bài tập thành công.")
 
-@router.get("", response_model=UserListAssignmentsResponse, summary="Lấy danh sách bài tập của người dùng hiện tại")
-def list_users(search: Optional[str] = Query(None), role: Optional[UserRole] = None, page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
+@router.get("", response_model=AssignmentListResponse, summary="Lấy danh sách bài tập của người dùng hiện tại")
+def list_my_assignments(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Lấy danh sách bài tập của người dùng hiện tại.
-    Chỉ admin mới có quyền truy cập.
+    Lấy danh sách bài tập liên quan tới người dùng hiện tại:
+    - Admin: toàn bộ bài tập.
+    - Giảng viên: bài tập của các lớp mình phụ trách.
+    - Học viên: bài tập của các lớp mình đã tham gia.
     """
-    query = db.query(User)
+    query = db.query(Assignment)
 
-    if search:
-        query = query.filter(or_(User.email.ilike(f"%{search}%"), User.full_name.ilike(f"%{search}%")))
-    if role:
-        query = query.filter(User.role == role)
+    if current_user.role == UserRole.INSTRUCTOR:
+        query = query.join(Class, Class.id == Assignment.class_id).filter(Class.instructor_id == current_user.id)
+    elif current_user.role == UserRole.STUDENT:
+        query = query.join(ClassEnrollment, ClassEnrollment.class_id == Assignment.class_id).filter(
+            ClassEnrollment.student_id == current_user.id
+        )
 
     total_count = query.count()
 
-    users = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    assignments = query.order_by(Assignment.due_date.asc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return UserListAssignmentsResponse(
+    return AssignmentListResponse(
         total_count=total_count,
         page=page,
         page_size=page_size,
-        users=users
+        assignments=assignments
     )
 
 @router.patch("/submissions/{submission_id}/grade", response_model=SubmissionResponse, summary="Chấm điểm bài nộp (chỉ dành cho giáo viên)")
