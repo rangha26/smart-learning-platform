@@ -31,7 +31,7 @@ class SubmissionResponse(BaseModel):
     student_id: int
     file_url: str
     submitted_at: datetime
-    state: SubmissionState
+    status: SubmissionState
     grade: Optional[float] = None
     feedback: Optional[str] = None
 
