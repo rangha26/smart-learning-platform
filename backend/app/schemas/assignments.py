@@ -49,3 +49,11 @@ class AssignmentStatsResponse(BaseModel):
     details: dict
 
     model_config = ConfigDict(from_attributes=True)
+
+class AssignmentListResponse(BaseModel):
+    total_count: int
+    page: int
+    page_size: int
+    assignments: list[AssignmentResponse]
+
+    model_config = ConfigDict(from_attributes=True)
