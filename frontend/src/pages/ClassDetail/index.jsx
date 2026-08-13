@@ -14,6 +14,8 @@ import {
   Send,
   Star,
   Users,
+  X,
+  FileText,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -186,6 +188,7 @@ function BangTinTab({ classId, canPost, currentUser }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newPost, setNewPost] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState([])
   const [posting, setPosting] = useState(false)
   const [expandedComments, setExpandedComments] = useState({})
   const [commentInputs, setCommentInputs] = useState({})
@@ -225,14 +228,15 @@ function BangTinTab({ classId, canPost, currentUser }) {
 
   const handlePost = async () => {
     const content = newPost.trim()
-    if (!content) return
+    if (!content && selectedFiles.length === 0) return
 
     setPosting(true)
     setError('')
     try {
-      const created = await postService.createPost(classId, content)
+      const created = await postService.createPost(classId, content, selectedFiles)
       setPosts((prev) => [created, ...prev])
       setNewPost('')
+      setSelectedFiles([])
     } catch (err) {
       setError(err.message || 'Không thể đăng thông báo. Vui lòng thử lại.')
     } finally {
@@ -300,10 +304,28 @@ function BangTinTab({ classId, canPost, currentUser }) {
             </div>
           </div>
 
-          <div className="border-t border-border/50 bg-muted/5 px-4 py-2.5 flex items-center justify-end">
+          <div className="border-t border-border/50 bg-muted/5 px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-indigo-600 transition-colors px-2 py-1.5 rounded-md hover:bg-indigo-50">
+                <Paperclip className="size-4" />
+                Đính kèm
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setSelectedFiles((prev) => [...prev, ...Array.from(e.target.files)])
+                    }
+                  }}
+                  disabled={posting}
+                />
+              </label>
+            </div>
+            
             <Button
               onClick={handlePost}
-              disabled={!newPost.trim() || posting}
+              disabled={(!newPost.trim() && selectedFiles.length === 0) || posting}
               size="sm"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs shadow-indigo-600/30 gap-2 disabled:opacity-40"
             >
@@ -311,6 +333,27 @@ function BangTinTab({ classId, canPost, currentUser }) {
               Đăng
             </Button>
           </div>
+          {/* Danh sách file đã chọn */}
+          {selectedFiles.length > 0 && (
+            <div className="border-t border-border/50 bg-muted/5 px-4 py-2.5">
+              <div className="flex flex-wrap gap-2">
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1 text-xs">
+                    <FileText className="size-3.5 text-muted-foreground" />
+                    <span className="truncate max-w-[150px] font-medium" title={file.name}>{file.name}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                      className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                      disabled={posting}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -350,6 +393,26 @@ function BangTinTab({ classId, canPost, currentUser }) {
             </div>
 
             <p className="mt-4 text-sm leading-relaxed text-foreground whitespace-pre-line">{post.content}</p>
+
+            {/* Attachments */}
+            {post.attachments && post.attachments.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {post.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-md border bg-muted/30 px-3 py-1.5 text-xs hover:bg-muted/50 hover:border-border transition-all"
+                  >
+                    <FileText className="size-4 text-indigo-500" />
+                    <span className="font-medium text-foreground truncate max-w-[200px]" title={att.file_name || 'Tệp đính kèm'}>
+                      {att.file_name || 'Tệp đính kèm'}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Comments */}
             <div className="mt-4 border-t border-border/50 pt-3">

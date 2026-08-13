@@ -52,7 +52,11 @@ def _build_comment_tree(comments: list[Comment]) -> list[CommentResponse]:
     return roots
 
 
-def _post_response(post: Post, comments: list[Comment]) -> PostResponse:
+def _post_response(post: Post, comments: list[Comment], attachments: list[Attachment] = None) -> PostResponse:
+    if attachments is None:
+        # Fallback to relationship if not explicitly provided
+        attachments = getattr(post, "attachments", [])
+
     return PostResponse(
         id=post.id,
         class_id=post.class_id,
@@ -61,6 +65,7 @@ def _post_response(post: Post, comments: list[Comment]) -> PostResponse:
         author=UserSummaryResponse.model_validate(post.author),
         author_role=post.author.role,
         comments=_build_comment_tree(comments),
+        attachments=attachments,
     )
 
 
@@ -105,7 +110,7 @@ async def create_post(
             db.add(attachment)
         db.commit()
 
-    return _post_response(post, [])
+    return _post_response(post, [], getattr(post, "attachments", []))
 
 
 @router.get("/classes/{class_id}/posts", response_model=list[PostResponse])
@@ -126,6 +131,8 @@ def get_class_posts(
     post_ids = [post.id for post in posts]
 
     comments_by_post: dict[int, list[Comment]] = {post_id: [] for post_id in post_ids}
+    attachments_by_post: dict[int, list[Attachment]] = {post_id: [] for post_id in post_ids}
+    
     if post_ids:
         all_comments = (
             db.query(Comment)
@@ -136,7 +143,15 @@ def get_class_posts(
         for comment in all_comments:
             comments_by_post[comment.post_id].append(comment)
 
-    return [_post_response(post, comments_by_post[post.id]) for post in posts]
+        all_attachments = (
+            db.query(Attachment)
+            .filter(Attachment.post_id.in_(post_ids))
+            .all()
+        )
+        for att in all_attachments:
+            attachments_by_post[att.post_id].append(att)
+
+    return [_post_response(post, comments_by_post[post.id], attachments_by_post[post.id]) for post in posts]
 
 
 @router.post(
