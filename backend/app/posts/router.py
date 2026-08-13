@@ -5,14 +5,16 @@ from app.auth.dependencies import get_current_user
 from app.classes.router import _ensure_can_view_class, _get_class_or_404
 from app.core import BadRequestException, ForbiddenException, NotFoundException
 from app.db import get_db
-from app.models import Class, Comment, Post, User, UserRole
+from app.models import Class, Comment, Post, User, UserRole, Attachment
 from app.schemas import (
     CommentCreateRequest,
     CommentResponse,
-    PostCreateRequest,
     PostResponse,
     UserSummaryResponse,
 )
+from fastapi import File, Form, UploadFile
+from typing import Optional
+from app.core.supabase import upload_file_to_supabase
 
 router = APIRouter(tags=["Posts"])
 
@@ -74,9 +76,10 @@ def _get_post_or_404(db: Session, post_id: int) -> Post:
     response_model=PostResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_post(
+async def create_post(
     class_id: int,
-    payload: PostCreateRequest,
+    content: str = Form(...),
+    files: Optional[list[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -84,10 +87,24 @@ def create_post(
     _ensure_can_view_class(db, class_, current_user)
     _ensure_can_post(class_, current_user)
 
-    post = Post(class_id=class_id, author_id=current_user.id, content=payload.content)
+    post = Post(class_id=class_id, author_id=current_user.id, content=content)
     db.add(post)
     db.commit()
     db.refresh(post)
+
+    # Handle attachments
+    if files:
+        for f in files:
+            file_url = await upload_file_to_supabase(f, folder="posts")
+            attachment = Attachment(
+                post_id=post.id,
+                file_url=file_url,
+                file_name=f.filename,
+                file_type=f.content_type
+            )
+            db.add(attachment)
+        db.commit()
+
     return _post_response(post, [])
 
 

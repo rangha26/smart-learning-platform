@@ -11,3 +11,5 @@ python-jose[cryptography]
 httpx
 bcrypt
 redis
+supabase
+python-multipart

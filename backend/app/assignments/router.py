@@ -6,9 +6,12 @@ from app.models import Assignment, User, UserRole, Class, Submission, Submission
 from app.auth.dependencies import get_current_user, require_roles
 from app.core import ForbiddenException, NotFoundException
 from app.schemas import MessageResponse
-from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
+from app.schemas.assignments import AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionResponse, GradeSubmissionRequest
 from app.classes.router import _get_class_or_404
 from datetime import datetime, timezone
+from fastapi import File, Form, UploadFile
+from typing import Optional
+from app.core.supabase import upload_file_to_supabase
 
 router = APIRouter(
     prefix="/assignments",
@@ -17,7 +20,16 @@ router = APIRouter(
 
 @router.post("/classes/{class_id}/", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED, summary="Tạo bài tập mới cho lớp học")
 
-def create_assignment(class_id: int, assignment_request: AssignmentCreateRequest, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.INSTRUCTOR))):
+async def create_assignment(
+    class_id: int, 
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    due_date: datetime = Form(...),
+    max_score: float = Form(10),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_roles(UserRole.INSTRUCTOR))
+):
     """
     Tạo một bài tập mới cho lớp học được chỉ định.
     Chỉ giáo viên của lớp học mới có quyền tạo bài tập.
@@ -29,14 +41,19 @@ def create_assignment(class_id: int, assignment_request: AssignmentCreateRequest
     if class_instance.instructor_id != current_user.id:
         raise ForbiddenException(message="Bạn không có quyền tạo bài tập cho lớp học này.")
 
+    # Upload file nếu có
+    file_url = None
+    if file:
+        file_url = await upload_file_to_supabase(file, folder="assignments")
+
     # Tạo bài tập mới
     new_assignment = Assignment(
         class_id=class_id,
-        title=assignment_request.title,
-        description=assignment_request.description,
-        due_date=assignment_request.due_date,
-        max_score=assignment_request.max_score,
-        file_url=assignment_request.file_url
+        title=title,
+        description=description,
+        due_date=due_date,
+        max_score=max_score,
+        file_url=file_url
     )
     db.add(new_assignment)
     db.commit()
@@ -45,7 +62,12 @@ def create_assignment(class_id: int, assignment_request: AssignmentCreateRequest
     return new_assignment
 
 @router.post("/{assignment_id}/submit", response_model=SubmissionResponse, status_code=status.HTTP_201_CREATED, summary="Nộp bài tập")
-def submit_assignment(assignment_id: int, submission_request: SubmissionCreateRequest, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.STUDENT))):
+async def submit_assignment(
+    assignment_id: int, 
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(require_roles(UserRole.STUDENT))
+):
     """
     Nộp bài tập cho một bài tập cụ thể.
     Chỉ sinh viên đã đăng ký lớp học mới có quyền nộp bài tập.
@@ -60,10 +82,13 @@ def submit_assignment(assignment_id: int, submission_request: SubmissionCreateRe
     if not enrollment:
         raise ForbiddenException(message="Bạn không có quyền nộp bài tập cho lớp học này.")
 
+    # Upload bài làm lên Supabase
+    file_url = await upload_file_to_supabase(file, folder="submissions")
+
     # Kiểm tra xem sinh viên đã nộp bài tập chưa
     existing_submission = db.query(Submission).filter(Submission.assignment_id == assignment_id, Submission.student_id == current_user.id).first()
     if existing_submission:
-        existing_submission.file_url = submission_request.file_url
+        existing_submission.file_url = file_url
         existing_submission.submitted_at = datetime.now(timezone.utc)
         existing_submission.status = (SubmissionState.LATE if existing_submission.submitted_at > assignment.due_date else SubmissionState.ON_TIME)
         db.commit()
@@ -76,7 +101,7 @@ def submit_assignment(assignment_id: int, submission_request: SubmissionCreateRe
     new_submission = Submission(
         assignment_id=assignment_id,
         student_id=current_user.id,
-        file_url=submission_request.file_url,
+        file_url=file_url,
         submitted_at=now,
         status=submission_status
     )
