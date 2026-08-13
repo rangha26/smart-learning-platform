@@ -25,12 +25,29 @@ from app.schemas.dashboard import (
     TeacherClassSummary,
     TeacherDashboardResponse,
     UpcomingAssignmentSummary,
+    TodoItem,
 )
 from app.schemas.posts import (
     CommentCreateRequest,
     CommentResponse,
     PostCreateRequest,
     PostResponse,
+)
+from app.schemas.assignments import (
+    AssignmentCreateRequest,
+    AssignmentResponse,
+    AssignmentStatsResponse,
+    AssignmentFullReportResponse,
+    GradeSubmissionRequest,
+    SubmissionCreateRequest,
+    SubmissionResponse,
+    StudentSubmissionReport,
+    AssignmentListResponse,
+)
+from app.schemas.admin import (
+    UserAdminResponse,
+    UserStatusUpdateRequest,
+    UserListAdminResponse,
 )
 
 __all__ = [
@@ -56,8 +73,21 @@ __all__ = [
     "UpcomingAssignmentSummary",
     "TeacherDashboardResponse",
     "StudentDashboardResponse",
+    "TodoItem",
     "PostCreateRequest",
     "PostResponse",
     "CommentCreateRequest",
     "CommentResponse",
+    "AssignmentCreateRequest",
+    "AssignmentResponse",
+    "AssignmentStatsResponse",
+    "AssignmentFullReportResponse",
+    "GradeSubmissionRequest",
+    "SubmissionCreateRequest",
+    "SubmissionResponse",
+    "StudentSubmissionReport",
+    "AssignmentListResponse",
+    "UserAdminResponse",
+    "UserStatusUpdateRequest",
+    "UserListAdminResponse",
 ]

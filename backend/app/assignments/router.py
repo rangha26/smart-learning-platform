@@ -6,7 +6,7 @@ from app.models import Assignment, User, UserRole, Class, Submission, Submission
 from app.auth.dependencies import get_current_user, require_roles
 from app.core import ForbiddenException, NotFoundException
 from app.schemas import MessageResponse
-from app.schemas.assignments import AssignmentCreateRequest, AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
+from app.schemas.assignments import AssignmentCreateRequest, AssignmentFullReportResponse, AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionCreateRequest, SubmissionResponse, GradeSubmissionRequest
 from app.classes.router import _get_class_or_404
 from datetime import datetime, timezone
 
@@ -228,4 +228,53 @@ def get_assignment_stats(assignment_id: int, db: Session = Depends(get_db), curr
         submitted_count=submitted_count,
         not_submitted_count=total_students - submitted_count,
         details=result
+    )
+
+@router.get("/{assignment_id}/report", response_model=AssignmentFullReportResponse, summary="Lấy báo cáo chi tiết nộp bài tập cho một bài tập cụ thể (chỉ dành cho giáo viên)")
+def get_assignment_full_report(assignment_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles(UserRole.INSTRUCTOR))):
+    """
+    Lấy báo cáo chi tiết nộp bài tập cho một bài tập cụ thể.
+    Chỉ giáo viên của lớp học mới có quyền xem báo cáo.
+    """
+    # Kiểm tra xem bài tập có tồn tại không
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise NotFoundException(message="Bài tập không tồn tại.")
+
+    # Kiểm tra xem giáo viên có quyền xem báo cáo bài tập này không
+    classroom = db.query(Class).filter(Class.id == assignment.class_id).first()
+    if classroom.instructor_id != current_user.id:
+        raise ForbiddenException(message="Bạn không có quyền xem báo cáo bài tập này.")
+
+    # Lấy danh sách sinh viên đã đăng ký lớp học
+    enrolled_students = db.query(User).join(ClassEnrollment, ClassEnrollment.student_id == User.id).filter(ClassEnrollment.class_id == assignment.class_id).all()
+
+    # Lấy danh sách nộp bài tập
+    submissions = db.query(Submission).filter(Submission.assignment_id == assignment_id).all()
+    submission_dict = {submission.student_id: submission for submission in submissions}
+
+    student_reports = []
+    for student in enrolled_students:
+        submission = submission_dict.get(student.id)
+        student_report = {
+            "student": student,
+            "is_submitted": submission is not None,
+            "submission_id": submission.id if submission else None,
+            "status": submission.status if submission else None,
+            "grade": submission.grade if submission else None,
+            "submitted_at": submission.submitted_at if submission else None
+        }
+        student_reports.append(student_report)
+
+    total_enrolled = len(enrolled_students)
+    submitted_count = sum(1 for report in student_reports if report["is_submitted"])
+    graded_count = sum(1 for report in student_reports if report["grade"] is not None)
+
+    return AssignmentFullReportResponse(
+        assignment_id=assignment.id,
+        title=assignment.title,
+        total_enrolled=total_enrolled,
+        submitted_count=submitted_count,
+        graded_count=graded_count,
+        students=student_reports
     )

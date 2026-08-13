@@ -21,6 +21,7 @@ from app.schemas import (
     TeacherClassSummary,
     TeacherDashboardResponse,
     UpcomingAssignmentSummary,
+    TodoItem,
 )
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -225,3 +226,33 @@ def get_student_dashboard(
             for assignment in upcoming_assignments
         ],
     )
+
+@router.get("/student/todo", response_model=list[TodoItem])
+def get_student_todo_list(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.STUDENT)),
+):
+    enrolled_class_ids = db.query(ClassEnrollment.class_id).filter(ClassEnrollment.student_id == current_user.id).all()
+    class_ids = [row[0] for row in enrolled_class_ids]
+
+    if not class_ids:
+        return []
+
+    submitted_ids = db.query(Submission.assignment_id).filter(Submission.student_id == current_user.id).subquery()
+
+    todo_assignments = db.query(Assignment).filter(
+        Assignment.class_id.in_(class_ids),
+        Assignment.id.not_in(submitted_ids),
+    ).order_by(Assignment.due_date.asc()).all()
+
+    now = datetime.now(timezone.utc)
+    return [
+        TodoItem(
+            assignment_id=assignment.id,
+            title=assignment.title,
+            class_title=assignment.class_.title,
+            due_date=assignment.due_date,
+            status="LATE" if assignment.due_date < now else "PENDING"
+        )
+        for assignment in todo_assignments
+    ]
