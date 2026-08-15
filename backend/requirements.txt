@@ -11,3 +11,15 @@ python-jose[cryptography]
 httpx
 bcrypt
 redis
+supabase
+python-multipart
+pgvector
+langchain
+langchain-text-splitters
+langchain-google-genai
+langchain-postgres
+pdfplumber
+python-docx
+python-pptx
+openpyxl
+requests

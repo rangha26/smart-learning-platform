@@ -60,7 +60,8 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
     SMTP_USE_TLS: bool = True
 
-
+    # Google Gemini AI Configs
+    GOOGLE_API_KEY: str = ""
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
