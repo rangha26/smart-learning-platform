@@ -46,6 +46,17 @@ class CommentResponse(BaseModel):
 CommentResponse.model_rebuild()
 
 
+class AttachmentResponse(BaseModel):
+    id: int
+    post_id: int
+    file_url: str
+    file_name: Optional[str] = None
+    file_type: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PostResponse(BaseModel):
     id: int
     class_id: int
@@ -53,6 +64,7 @@ class PostResponse(BaseModel):
     created_at: datetime
     author: UserSummaryResponse
     author_role: UserRole
+    attachments: list[AttachmentResponse] = Field(default_factory=list)
     comments: list[CommentResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

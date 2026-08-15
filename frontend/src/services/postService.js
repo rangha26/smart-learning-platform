@@ -34,9 +34,22 @@ export const postService = {
   /**
    * Đăng thông báo mới (chỉ giảng viên của lớp)
    */
-  async createPost(classId, content) {
+  async createPost(classId, content, files = []) {
     try {
-      const response = await apiClient.post(`/classes/${classId}/posts`, { content })
+      const formData = new FormData()
+      formData.append('content', content)
+      
+      // Append each file with the key 'files' (matching the backend list[UploadFile] name)
+      files.forEach(file => {
+        formData.append('files', file)
+      })
+
+      // apiClient mặc định Content-Type: application/json — nếu không gỡ header này,
+      // axios sẽ tưởng ta muốn JSON và convert FormData thành JSON.stringify thay vì
+      // gửi multipart thật (mất hết phần file đính kèm).
+      const response = await apiClient.post(`/classes/${classId}/posts`, formData, {
+        headers: { 'Content-Type': undefined },
+      })
       return response.data
     } catch (error) {
       throwServiceError(error, 'Không thể đăng thông báo. Vui lòng thử lại.')

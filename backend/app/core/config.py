@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
     SMTP_USE_TLS: bool = True
 
+    # Supabase Storage Configs
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET: str = "smart-learning-bucket"
+
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

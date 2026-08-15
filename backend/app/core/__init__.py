@@ -47,6 +47,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
+from app.core.supabase import upload_file_to_supabase
 
 __all__ = [
     "Settings",
@@ -82,4 +83,5 @@ __all__ = [
     "create_refresh_token",
     "decode_token",
     "get_current_user",
+    "upload_file_to_supabase",
 ]
