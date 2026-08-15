@@ -134,7 +134,7 @@ class Attachment(Base):
     post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("posts.id", ondelete="CASCADE"))
     file_url: Mapped[str] = mapped_column(String(500), nullable=False)
     file_name: Mapped[str | None] = mapped_column(String(255))
-    file_type: Mapped[str | None] = mapped_column(String(50))
+    file_type: Mapped[str | None] = mapped_column(String(150))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     post: Mapped["Post"] = relationship(back_populates="attachments")
