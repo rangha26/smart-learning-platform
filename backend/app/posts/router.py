@@ -83,7 +83,7 @@ def _get_post_or_404(db: Session, post_id: int) -> Post:
 )
 async def create_post(
     class_id: int,
-    content: str = Form(...),
+    content: str = Form(""),
     files: Optional[list[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -91,6 +91,9 @@ async def create_post(
     class_ = _get_class_or_404(db, class_id)
     _ensure_can_view_class(db, class_, current_user)
     _ensure_can_post(class_, current_user)
+
+    if not content.strip() and not files:
+        raise BadRequestException("Post must have content or at least one attachment.")
 
     post = Post(class_id=class_id, author_id=current_user.id, content=content)
     db.add(post)
