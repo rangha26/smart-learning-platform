@@ -44,10 +44,11 @@ export const postService = {
         formData.append('files', file)
       })
 
+      // apiClient mặc định Content-Type: application/json — nếu không gỡ header này,
+      // axios sẽ tưởng ta muốn JSON và convert FormData thành JSON.stringify thay vì
+      // gửi multipart thật (mất hết phần file đính kèm).
       const response = await apiClient.post(`/classes/${classId}/posts`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': undefined },
       })
       return response.data
     } catch (error) {
