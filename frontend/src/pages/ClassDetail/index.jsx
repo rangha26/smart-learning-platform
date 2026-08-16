@@ -29,6 +29,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { AssignmentEditorModal } from '@/components/classes/AssignmentEditorModal'
+import { StudentAssignmentDetailModal } from '@/components/classes/StudentAssignmentDetailModal'
 import { assignmentService } from '@/services/assignmentService'
 import { classService } from '@/services/classService'
 import { postService } from '@/services/postService'
@@ -524,6 +525,7 @@ function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedAssignmentForDetail, setSelectedAssignmentForDetail] = useState(null)
   const [search, setSearch] = useState('')
 
   const loadAssignments = async () => {
@@ -642,7 +644,10 @@ function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
                         <ClipboardList className="size-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-bold text-foreground group-hover:text-indigo-600 transition-colors">
+                        <h3
+                          onClick={() => setSelectedAssignmentForDetail(assignment)}
+                          className="text-base font-bold text-foreground group-hover:text-indigo-600 transition-colors cursor-pointer"
+                        >
                           {assignment.title}
                         </h3>
                         <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -658,17 +663,31 @@ function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
                       </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${dueInfo.colorClass}`}
-                    >
-                      {dueInfo.status === 'overdue' ? (
-                        <AlertTriangle className="size-3.5" />
-                      ) : (
-                        <CheckCircle2 className="size-3.5" />
-                      )}
-                      {dueInfo.label}
-                    </span>
+                    {/* Status Badge & Action Button */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${dueInfo.colorClass}`}
+                      >
+                        {dueInfo.status === 'overdue' ? (
+                          <AlertTriangle className="size-3.5" />
+                        ) : (
+                          <CheckCircle2 className="size-3.5" />
+                        )}
+                        {dueInfo.label}
+                      </span>
+
+                      <Button
+                        size="sm"
+                        onClick={() => setSelectedAssignmentForDetail(assignment)}
+                        className={`rounded-xl text-xs font-semibold px-3 py-1.5 ${
+                          canManage
+                            ? 'border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
+                        }`}
+                      >
+                        {canManage ? 'Xem đề bài' : 'Xem đề & Nộp bài'}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Description */}
@@ -705,13 +724,21 @@ function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
         </div>
       )}
 
-      {/* Assignment Editor Modal */}
+      {/* Assignment Editor Modal (Giảng viên) */}
       <AssignmentEditorModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleCreateSuccess}
         initialClassId={classId}
         initialClassName={classTitle}
+      />
+
+      {/* Student Assignment Detail & Submission Modal (Sinh viên / Giảng viên) */}
+      <StudentAssignmentDetailModal
+        isOpen={!!selectedAssignmentForDetail}
+        onClose={() => setSelectedAssignmentForDetail(null)}
+        assignment={selectedAssignmentForDetail}
+        isInstructor={canManage}
       />
     </div>
   )

@@ -97,6 +97,76 @@ export const assignmentService = {
   },
 
   /**
+   * Lấy bài nộp của học viên cho một bài tập cụ thể
+   * @param {number|string} assignmentId
+   */
+  async getMySubmission(assignmentId) {
+    try {
+      const response = await apiClient.get(`/assignments/${assignmentId}/my-submission`)
+      return response.data
+    } catch (error) {
+      // 404 nghĩa là sinh viên chưa nộp bài
+      if (error.response?.status === 404) {
+        return null
+      }
+      if (!error.response && import.meta.env.DEV) {
+        return null
+      }
+      throwServiceError(error, 'Không thể tải thông tin bài nộp.')
+    }
+  },
+
+  /**
+   * Nộp bài tập (Sinh viên)
+   * @param {number|string} assignmentId
+   * @param {File} file
+   */
+  async submitAssignment(assignmentId, file) {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await apiClient.post(`/assignments/${assignmentId}/submit`, formData, {
+        headers: { 'Content-Type': undefined },
+      })
+      return response.data
+    } catch (error) {
+      if (!error.response && import.meta.env.DEV) {
+        console.warn('Backend unavailable, using mock submission fallback.')
+        return {
+          id: Date.now(),
+          assignment_id: Number(assignmentId),
+          student_id: 999,
+          file_url: URL.createObjectURL(file),
+          file_name: file.name,
+          submitted_at: new Date().toISOString(),
+          status: 'ON_TIME',
+          grade: null,
+          feedback: null,
+        }
+      }
+      throwServiceError(error, 'Không thể nộp bài tập. Vui lòng thử lại.')
+    }
+  },
+
+  /**
+   * Hủy nộp bài tập (Sinh viên)
+   * @param {number|string} assignmentId
+   */
+  async unsubmitAssignment(assignmentId) {
+    try {
+      const response = await apiClient.delete(`/assignments/${assignmentId}/unsubmit`)
+      return response.data
+    } catch (error) {
+      if (!error.response && import.meta.env.DEV) {
+        console.warn('Backend unavailable, using mock unsubmit fallback.')
+        return { message: 'Hủy nộp bài tập thành công.' }
+      }
+      throwServiceError(error, 'Không thể hủy nộp bài. Vui lòng thử lại.')
+    }
+  },
+
+  /**
    * Lấy thống kê nộp bài (Giảng viên)
    */
   async getAssignmentStats(assignmentId) {
