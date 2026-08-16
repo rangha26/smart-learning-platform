@@ -8,6 +8,7 @@ import {
   FileText,
   Plus,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { AssignmentEditorModal } from '@/components/classes/AssignmentEditorModal'
 import { dashboardService } from '@/services/dashboardService'
@@ -35,6 +36,7 @@ function isOverdue(isoString) {
 }
 
 export function TeacherAssignmentsPage() {
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -183,6 +185,15 @@ export function TeacherAssignmentsPage() {
                           Hạn: {formatDueDate(assignment.due_date)}
                         </span>
                       </span>
+
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/teacher/assignments/${assignment.id}/grading`)}
+                        className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 shadow-xs"
+                      >
+                        <Award className="mr-1 size-3.5" />
+                        Chấm bài
+                      </Button>
                     </div>
                   </div>
                 </article>

@@ -16,9 +16,9 @@ import { AdminDashboardPage } from '@/pages/admin/Dashboard'
 import { AdminReportsPage } from '@/pages/admin/Reports'
 import { AdminUserManagementPage } from '@/pages/admin/UserManagement'
 
-// Teacher Pages
 import { TeacherAssignmentsPage } from '@/pages/teacher/Assignments'
 import { TeacherDashboardPage } from '@/pages/teacher/Dashboard'
+import { TeacherGradingPage } from '@/pages/teacher/Grading'
 import { TeacherMyCoursesPage } from '@/pages/teacher/MyCourses'
 import { TeacherStudentsPage } from '@/pages/teacher/Students'
 
@@ -72,6 +72,8 @@ function AppRoutes() {
           <Route element={<TeacherAssignmentsPage />} path="/teacher/assignments" />
           <Route element={<TeacherStudentsPage />} path="/teacher/students" />
           <Route element={<ClassDetailPage />} path="/teacher/class/:id" />
+          <Route element={<TeacherGradingPage />} path="/teacher/assignments/:assignmentId/grading" />
+          <Route element={<TeacherGradingPage />} path="/teacher/class/:classId/assignments/:assignmentId/grading" />
         </Route>
       </Route>
 

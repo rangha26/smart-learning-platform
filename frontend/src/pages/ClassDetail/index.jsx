@@ -676,17 +676,38 @@ function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
                         {dueInfo.label}
                       </span>
 
-                      <Button
-                        size="sm"
-                        onClick={() => setSelectedAssignmentForDetail(assignment)}
-                        className={`rounded-xl text-xs font-semibold px-3 py-1.5 ${
-                          canManage
-                            ? 'border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
-                        }`}
-                      >
-                        {canManage ? 'Xem đề bài' : 'Xem đề & Nộp bài'}
-                      </Button>
+                      {canManage ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedAssignmentForDetail(assignment)}
+                            className="rounded-xl text-xs font-semibold px-2.5 py-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            Xem đề bài
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              navigate(
+                                `/teacher/class/${classId}/assignments/${assignment.id}/grading`
+                              )
+                            }
+                            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 shadow-xs"
+                          >
+                            <Award className="mr-1 size-3.5" />
+                            Chấm bài
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => setSelectedAssignmentForDetail(assignment)}
+                          className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs text-xs font-semibold px-3 py-1.5"
+                        >
+                          Xem đề & Nộp bài
+                        </Button>
+                      )}
                     </div>
                   </div>
 
