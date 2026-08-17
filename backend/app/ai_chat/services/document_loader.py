@@ -108,7 +108,9 @@ def load_document_text(file_path_or_url: str, file_extension: str = None) -> str
         _, ext = os.path.splitext(local_path)
         file_extension = ext.lower()
     else:
-        file_extension = file_extension.lower()
+        # User passed a full filename or an extension
+        _, ext = os.path.splitext(file_extension)
+        file_extension = ext.lower() if ext else file_extension.lower()
         if not file_extension.startswith('.'):
             file_extension = '.' + file_extension
             
