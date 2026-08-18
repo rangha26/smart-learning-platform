@@ -139,40 +139,32 @@ export function TeacherGradingPage() {
           (a) => String(a.id) === String(assignmentId)
         )
 
-        // 2. Fetch submissions for this assignment
-        let subs = []
-        try {
-          subs = await assignmentService.getSubmissions(assignmentId)
-        } catch {
-          subs = []
-        }
+        // Lớp học lấy ưu tiên từ bài tập thật (chính xác), rồi mới tới URL param
+        const resolvedClassId = found?.class_id ?? (classId ? Number(classId) : null)
 
-        // Mock fallback if offline dev
         const resolvedAssignment = found || {
           id: Number(assignmentId),
           title: `Bài tập #${assignmentId}`,
           description: 'Soạn thảo và thực thi đầy đủ các bài tập theo yêu cầu giảng viên.',
           due_date: new Date(Date.now() + 86400000).toISOString(),
           max_score: 10,
-          class_id: classId ? Number(classId) : 1,
+          class_id: resolvedClassId ?? 1,
         }
 
-        // Mock enrolled students list combined with submissions
-        const mockStudentNames = [
-          { id: 101, full_name: 'Nguyễn Văn An', email: 'an.nguyen@example.com' },
-          { id: 102, full_name: 'Trần Thị Bình', email: 'binh.tran@example.com' },
-          { id: 103, full_name: 'Lê Hoàng Cường', email: 'cuong.le@example.com' },
-          { id: 104, full_name: 'Phạm Minh Dũng', email: 'dung.pham@example.com' },
-          { id: 105, full_name: 'Hoàng Mai Phương', email: 'phuong.hoang@example.com' },
-          { id: 106, full_name: 'Vũ Đức Thịnh', email: 'thinh.vu@example.com' },
-        ]
+        // 2. Fetch submissions và danh sách học viên thật của lớp song song
+        const [subs, classStudents] = await Promise.all([
+          assignmentService.getSubmissions(assignmentId).catch(() => []),
+          resolvedClassId
+            ? classService.getClassStudents(resolvedClassId).catch(() => [])
+            : Promise.resolve([]),
+        ])
 
         if (!ignore) {
           setAssignment(resolvedAssignment)
           setSubmissions(subs || [])
-          setStudents(mockStudentNames)
-          if (mockStudentNames.length > 0) {
-            setSelectedStudentId(mockStudentNames[0].id)
+          setStudents(classStudents || [])
+          if (classStudents?.length > 0) {
+            setSelectedStudentId(classStudents[0].id)
           }
         }
       } catch (err) {

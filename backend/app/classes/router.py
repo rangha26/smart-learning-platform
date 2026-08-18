@@ -171,3 +171,22 @@ def get_class_detail(
     class_ = _get_class_or_404(db, class_id)
     _ensure_can_view_class(db, class_, current_user)
     return _class_response(db, class_)
+
+
+@router.get("/{class_id}/students", response_model=list[UserSummaryResponse])
+def get_class_students(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    class_ = _get_class_or_404(db, class_id)
+    _ensure_can_view_class(db, class_, current_user)
+
+    students = (
+        db.query(User)
+        .join(ClassEnrollment, ClassEnrollment.student_id == User.id)
+        .filter(ClassEnrollment.class_id == class_id)
+        .order_by(User.full_name.asc())
+        .all()
+    )
+    return [UserSummaryResponse.model_validate(student) for student in students]
