@@ -4,7 +4,7 @@ from sqlalchemy import func
 from app.db import get_db
 from app.models import Assignment, User, UserRole, Class, Submission, SubmissionState, ClassEnrollment
 from app.auth.dependencies import get_current_user, require_roles
-from app.core import ForbiddenException, NotFoundException
+from app.core import BadRequestException, ForbiddenException, NotFoundException
 from app.schemas import MessageResponse
 from app.schemas.assignments import AssignmentResponse, AssignmentListResponse, AssignmentStatsResponse, SubmissionResponse, GradeSubmissionRequest
 from app.classes.router import _get_class_or_404
@@ -40,6 +40,10 @@ async def create_assignment(
     # Kiểm tra quyền của người dùng hiện tại
     if class_instance.instructor_id != current_user.id:
         raise ForbiddenException(message="Bạn không có quyền tạo bài tập cho lớp học này.")
+
+    due_date_reference = due_date if due_date.tzinfo else due_date.replace(tzinfo=timezone.utc)
+    if due_date_reference <= datetime.now(timezone.utc):
+        raise BadRequestException(message="Hạn nộp phải là một thời điểm trong tương lai.")
 
     # Upload file nếu có
     file_url = None
@@ -152,12 +156,21 @@ def unsubmit_assignment(assignment_id: int, db: Session = Depends(get_db), curre
     return MessageResponse(message="Hủy nộp bài tập thành công.")
 
 @router.get("", response_model=AssignmentListResponse, summary="Lấy danh sách bài tập của người dùng hiện tại")
-def list_my_assignments(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_my_assignments(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    class_id: Optional[int] = Query(None, description="Chỉ lấy bài tập của một lớp cụ thể"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
     Lấy danh sách bài tập liên quan tới người dùng hiện tại:
     - Admin: toàn bộ bài tập.
     - Giảng viên: bài tập của các lớp mình phụ trách.
     - Học viên: bài tập của các lớp mình đã tham gia.
+
+    Truyền class_id để lọc riêng bài tập của một lớp (áp dụng SAU khi đã giới
+    hạn theo quyền ở trên, nên không thể dùng để xem lớp mình không thuộc về).
     """
     query = db.query(Assignment)
 
@@ -167,6 +180,9 @@ def list_my_assignments(page: int = Query(1, ge=1), page_size: int = Query(10, g
         query = query.join(ClassEnrollment, ClassEnrollment.class_id == Assignment.class_id).filter(
             ClassEnrollment.student_id == current_user.id
         )
+
+    if class_id is not None:
+        query = query.filter(Assignment.class_id == class_id)
 
     total_count = query.count()
 
