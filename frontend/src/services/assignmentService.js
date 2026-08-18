@@ -68,9 +68,10 @@ export const assignmentService = {
    */
   async getClassAssignments(classId) {
     try {
-      const response = await apiClient.get('/assignments')
-      const all = response.data?.assignments || []
-      return all.filter((a) => String(a.class_id) === String(classId))
+      const response = await apiClient.get('/assignments', {
+        params: { class_id: classId, page_size: 100 },
+      })
+      return response.data?.assignments || []
     } catch (error) {
       if (!error.response && import.meta.env.DEV) {
         return []
