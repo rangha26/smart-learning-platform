@@ -12,6 +12,7 @@ from app.core import (
 )
 from app.assignments.router import router as assignments_router
 from app.admin.router import router as admin_router
+from app.ai_chat.router import router as ai_chat_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -34,6 +35,7 @@ app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(posts_router, prefix="/api/v1")
 app.include_router(assignments_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
+app.include_router(ai_chat_router, prefix="/api/v1")
 
 
 @app.get("/")
