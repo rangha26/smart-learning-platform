@@ -98,7 +98,7 @@ export function AdminUserManagementPage() {
   // Search & Filters
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL') // ALL, STUDENT, INSTRUCTOR, ADMIN
-  const [statusFilter, setStatusFilter] = useState('ALL') // ALL, ACTIVE, BLOCKED
+  const [statusFilter, setStatusFilter] = useState('ALL') // ALL, ACTIVE, INACTIVE
 
   // Lock / Unlock action loading state per userId
   const [actionLoadingId, setActionLoadingId] = useState(null)
@@ -158,7 +158,7 @@ export function AdminUserManagementPage() {
     }
 
     const isCurrentlyActive = user.status === 'ACTIVE'
-    const newStatus = isCurrentlyActive ? 'BLOCKED' : 'ACTIVE'
+    const newStatus = isCurrentlyActive ? 'INACTIVE' : 'ACTIVE'
     const actionText = isCurrentlyActive ? 'KHÓA' : 'MỞ KHÓA'
 
     const confirmed = window.confirm(
@@ -328,7 +328,7 @@ export function AdminUserManagementPage() {
               >
                 <option value="ALL">Tất cả</option>
                 <option value="ACTIVE">Đang hoạt động</option>
-                <option value="BLOCKED">Đã khóa</option>
+                <option value="INACTIVE">Đã khóa</option>
               </select>
             </div>
           </div>
@@ -365,7 +365,7 @@ export function AdminUserManagementPage() {
                 filteredUsers.map((user) => {
                   const roleBadge = getRoleBadge(user.role)
                   const RoleIcon = roleBadge.icon
-                  const isBlocked = user.status === 'BLOCKED'
+                  const isBlocked = user.status === 'INACTIVE'
                   const isSelf = user.id === currentUser?.id
                   const isActionLoading = actionLoadingId === user.id
 

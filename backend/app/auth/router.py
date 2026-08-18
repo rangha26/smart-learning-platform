@@ -64,6 +64,8 @@ from app.schemas import (
     VerifyOTPResponse,
 )
 
+from app.core.redis import redis_client
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger("app.auth")
 
@@ -116,6 +118,23 @@ def _issue_token_pair(user: User) -> tuple[str, str, timedelta, timedelta]:
 
     return access_token, refresh_token, access_expires, refresh_expires
 
+def check_rate_limit(key: str, limit: int, window: int):
+    """
+    Kiểm tra giới hạn tốc độ (rate limit) dựa trên Redis.
+    Args:
+        key (str): Khóa Redis duy nhất cho người dùng hoặc IP.
+        limit (int): Số lần tối đa cho phép trong khoảng thời gian.
+        window (int): Khoảng thời gian giới hạn (tính bằng giây).
+    Returns:
+        bool: True nếu trong giới hạn, False nếu vượt quá giới hạn.
+    """
+
+    current = redis_client.incr(key)
+    if current == 1:
+        redis_client.expire(key, window)
+    if current > limit:
+        return False
+    return True
 
 @router.post(
     "/register",
@@ -166,6 +185,11 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     description="Xác thực email & mật khẩu, trả về thông tin User kèm Access Token (30p) và Refresh Token (7 ngày)."
 )
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    # Kiểm tra giới hạn tốc độ đăng nhập (rate limit) dựa trên email
+    rate_key = f"rate_limit:login:{payload.email}"
+    if not check_rate_limit(rate_key, limit=5, window=300):  # 5 lần trong 5 phút
+        raise BadRequestException("Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau.")
+
     # 1. Tìm User theo Email
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.hashed_password):
@@ -335,6 +359,11 @@ def logout_all(
     description="Sinh mã OTP ngẫu nhiên bằng `secrets`, lưu vào Redis (TTL 10 phút) và gửi qua SMTP Email."
 )
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # Kiểm tra giới hạn tốc độ yêu cầu OTP (rate limit) dựa trên email
+    rate_key = f"rate_limit:otp:{payload.email}"
+    if not check_rate_limit(rate_key, limit=5, window=300):  # 5 lần trong 5 phút
+        raise BadRequestException("Quá nhiều lần yêu cầu OTP. Vui lòng thử lại sau.")
+
     # 1. Kiểm tra Email có tồn tại trên hệ thống không
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:

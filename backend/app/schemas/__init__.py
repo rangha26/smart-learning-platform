@@ -61,6 +61,9 @@ from app.schemas.admin import (
     UserAdminResponse,
     UserStatusUpdateRequest,
     UserListAdminResponse,
+    AdminClassListResponse,
+    ClassAdminResponse,
+    MessageResponse
 )
 
 __all__ = [
@@ -103,4 +106,7 @@ __all__ = [
     "UserAdminResponse",
     "UserStatusUpdateRequest",
     "UserListAdminResponse",
+    "AdminClassListResponse",
+    "ClassAdminResponse",
+    "MessageResponse",
 ]

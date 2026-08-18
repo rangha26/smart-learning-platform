@@ -11,11 +11,13 @@ from app.schemas import (
     CommentResponse,
     PostResponse,
     UserSummaryResponse,
+    PostCreateRequest
 )
 from fastapi import File, Form, UploadFile
 from typing import Optional
 from app.core.supabase import upload_file_to_supabase
 from app.ai_chat.services.background_tasks import embed_post_in_background
+from app.core.utils import sanitize_html
 
 router = APIRouter(tags=["Posts"])
 
@@ -84,6 +86,7 @@ def _get_post_or_404(db: Session, post_id: int) -> Post:
 )
 async def create_post(
     class_id: int,
+    payload: PostCreateRequest,
     background_tasks: BackgroundTasks,
     content: str = Form(""),
     files: Optional[list[UploadFile]] = File(None),
@@ -97,7 +100,8 @@ async def create_post(
     if not content.strip() and not files:
         raise BadRequestException("Post must have content or at least one attachment.")
 
-    post = Post(class_id=class_id, author_id=current_user.id, content=content)
+    cleaned_content = sanitize_html(payload.content)
+    post = Post(class_id=class_id, author_id=current_user.id, content=cleaned_content)
     db.add(post)
     db.commit()
     db.refresh(post)
@@ -197,11 +201,12 @@ def create_comment(
         if not parent:
             raise BadRequestException("Parent comment does not belong to this post.")
 
+    cleaned_content = sanitize_html(payload.content)
     comment = Comment(
         post_id=post_id,
         user_id=current_user.id,
         parent_id=payload.parent_id,
-        content=payload.content,
+        content=cleaned_content,
     )
     db.add(comment)
     db.commit()

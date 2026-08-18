@@ -228,6 +228,8 @@ export function AssignmentEditorModal({
 
     if (!formData.dueDate) {
       errors.dueDate = 'Vui lòng chọn ngày và giờ hạn nộp bài.'
+    } else if (new Date(formData.dueDate).getTime() <= Date.now()) {
+      errors.dueDate = 'Hạn nộp phải là một thời điểm trong tương lai.'
     }
 
     const score = Number(formData.maxScore)

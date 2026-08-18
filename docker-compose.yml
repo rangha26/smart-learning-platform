@@ -4,6 +4,8 @@ services:
     image: pgvector/pgvector:pg16
     container_name: smart_learning_db
     restart: always
+    networks:
+      - slp_network
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
@@ -23,6 +25,8 @@ services:
     image: redis:7-alpine
     container_name: smart_learning_redis
     restart: always
+    networks:
+      - slp_network
     ports:
       - "${REDIS_PORT:-6379}:6379"
     command: redis-server --save 60 1 --loglevel notice
@@ -41,12 +45,15 @@ services:
       dockerfile: Dockerfile
     container_name: smart_learning_backend
     restart: always
+    networks:
+      - slp_network
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
       - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-classroom_db}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
       - ./backend:/app
     depends_on:
@@ -71,7 +78,13 @@ services:
       - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}
     depends_on:
       - backend
+    networks:
+      - slp_network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  slp_network:
+    driver: bridge

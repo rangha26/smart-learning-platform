@@ -4,6 +4,7 @@ Mục đích: Định nghĩa các API Endpoints cho tính năng AI Chat (RAG).
 """
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
@@ -25,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/classes", tags=["AI Chat"])
 
-from typing import Optional
+
+def _quota_exceeded_message(e: Exception) -> Optional[str]:
+    """Nếu lỗi là do Google trả về 429 (hết hạn mức API key), trả về thông báo
+    rõ ràng cho người dùng thay vì thông báo lỗi hệ thống chung chung."""
+    if getattr(e, "code", None) == 429 or getattr(e, "status", None) == "RESOURCE_EXHAUSTED":
+        return "Trợ lý AI đang tạm hết lượt sử dụng (vượt hạn mức API). Vui lòng thử lại sau ít phút."
+    return None
+
 from enum import Enum
 
 class LLMModelEnum(str, Enum):
@@ -93,6 +101,9 @@ async def upload_document_for_ai(
         raise
     except Exception as e:
         logger.error(f"Loi khi nap tai lieu AI cho lop {class_id}: {e}", exc_info=True)
+        quota_message = _quota_exceeded_message(e)
+        if quota_message:
+            raise HTTPException(status_code=429, detail=quota_message)
         raise HTTPException(status_code=500, detail="Không thể xử lý tài liệu. Vui lòng thử lại.")
 
 
@@ -127,4 +138,7 @@ async def chat_with_ai(
         raise
     except Exception as e:
         logger.error(f"Loi khi chat AI cho lop {class_id}: {e}", exc_info=True)
+        quota_message = _quota_exceeded_message(e)
+        if quota_message:
+            raise HTTPException(status_code=429, detail=quota_message)
         raise HTTPException(status_code=500, detail="Không thể trả lời lúc này. Vui lòng thử lại.")

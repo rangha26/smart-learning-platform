@@ -22,6 +22,25 @@ MODEL_MAPPING = {
     "Gemini 3.7 Flash": "gemini-3.7-flash",
 }
 
+def _extract_text(content) -> str:
+    """
+    response.content của langchain_google_genai có thể là str, hoặc (với một số
+    model Gemini mới) list các content block dạng {"type": "text", "text": "..."}.
+    Chuẩn hoá về plain string để client (frontend) không phải tự đoán format.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+        return "".join(parts)
+    return str(content)
+
+
 def get_llm_model(model_name: str) -> ChatGoogleGenerativeAI:
     """
     Khởi tạo mô hình ngôn ngữ lớn (LLM) của Google Gemini.
@@ -81,5 +100,5 @@ TRẢ LỜI:
     # 4. Gửi cho LLM và nhận kết quả (Bất đồng bộ)
     llm = get_llm_model(model_name)
     response = await llm.ainvoke([HumanMessage(content=formatted_prompt)])
-    
-    return response.content
+
+    return _extract_text(response.content)

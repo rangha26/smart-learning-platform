@@ -48,6 +48,7 @@ from app.core.security import (
     verify_password,
 )
 from app.core.supabase import upload_file_to_supabase
+from app.core.utils import sanitize_html
 
 __all__ = [
     "Settings",
@@ -84,4 +85,5 @@ __all__ = [
     "decode_token",
     "get_current_user",
     "upload_file_to_supabase",
+    "sanitize_html",
 ]

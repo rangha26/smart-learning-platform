@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from app.db import get_db
-from app.models import User, UserRole, UserStatus
+from app.models import User, UserRole, UserStatus, Class, ClassEnrollment
 from app.auth.dependencies import require_roles
 from app.core import NotFoundException, BadRequestException, revoke_all_user_tokens
-from app.schemas.admin import UserAdminResponse, UserStatusUpdateRequest, UserListAdminResponse
+from app.schemas import UserAdminResponse, UserStatusUpdateRequest, UserListAdminResponse, AdminClassListResponse, ClassAdminResponse
+from app.schemas.auth import MessageResponse
 from typing import List, Optional
 
 router = APIRouter(
@@ -61,3 +62,46 @@ def update_user_status(user_id: int, status_update: UserStatusUpdateRequest, db:
     db.refresh(user)
 
     return user
+
+@router.get("/classes", response_model=AdminClassListResponse, summary="Admin xem danh sách lớp học")
+def admin_list_classes(db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
+    """
+    Lấy danh sách lớp học.
+    Chỉ admin mới có quyền truy cập.
+    """
+    query = db.query(Class).all()
+
+    result = []
+    for c in query:
+        student_count = db.query(func.count(ClassEnrollment.id)).filter(ClassEnrollment.class_id == c.id).scalar()
+
+        result.append(ClassAdminResponse(
+            id=c.id,
+            title=c.title,
+            subject=c.subject,
+            join_code=c.join_code,
+            instructor_name=c.instructor.full_name if c.instructor else None,
+            student_count=student_count,
+            status=c.status.value,
+            created_at=c.created_at
+        ))
+    return {
+        "total": len(result),
+        "items": result
+    }
+
+@router.delete("/classes/{class_id}", response_model=MessageResponse, summary="Admin xóa lớp học")
+def delete_class(class_id: int, db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
+    """
+    Xóa một lớp học.
+    Chỉ admin mới có quyền truy cập.
+    """
+    class_to_delete = db.query(Class).filter(Class.id == class_id).first()
+
+    if not class_to_delete:
+        raise NotFoundException(message="Lớp học không tồn tại.")
+
+    db.delete(class_to_delete)
+    db.commit()
+
+    return MessageResponse(message="Lớp học đã được xóa thành công.")

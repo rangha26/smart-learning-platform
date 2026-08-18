@@ -23,3 +23,19 @@ class UserListAdminResponse(BaseModel):
     page_size: int
     items: List[UserAdminResponse]
 
+class ClassAdminResponse(BaseModel):
+    id: int
+    title: str
+    subject: str
+    join_code: str
+    instructor_name: str
+    student_count: int
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AdminClassListResponse(BaseModel):
+    total: int
+    items: List[ClassAdminResponse]
+

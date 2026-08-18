@@ -303,3 +303,22 @@ def get_assignment_full_report(assignment_id: int, db: Session = Depends(get_db)
         graded_count=graded_count,
         students=student_reports
     )
+
+@router.get("/submissions/{submission_id}", response_model=SubmissionResponse, summary="Lấy thông tin chi tiết của một bài nộp cụ thể")
+def get_submission_detail(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Lấy thông tin chi tiết của một bài nộp cụ thể.
+    - Giáo viên có thể xem tất cả các bài nộp của lớp học mình phụ trách.
+    - Sinh viên chỉ có thể xem bài nộp của chính mình.
+    """
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise NotFoundException(message="Bài nộp không tồn tại.")
+    # Kiểm tra quyền truy cập
+    if current_user.role == UserRole.STUDENT and submission.student_id != current_user.id:
+        raise ForbiddenException(message="Bạn không có quyền xem bài nộp này.")
+
+    if current_user.role == UserRole.INSTRUCTOR and submission.assignment.class_.instructor_id != current_user.id:
+        raise ForbiddenException(message="Bạn không có quyền xem bài nộp này.")
+
+    return submission
