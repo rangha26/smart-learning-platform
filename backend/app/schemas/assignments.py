@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional
 from app.models import SubmissionState
+from app.schemas.classes import UserSummaryResponse
 
 class AssignmentCreateRequest(BaseModel):
     title: str = Field(..., max_length=255)
@@ -55,5 +56,25 @@ class AssignmentListResponse(BaseModel):
     page: int
     page_size: int
     assignments: list[AssignmentResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StudentSubmissionReport(BaseModel):
+    student: UserSummaryResponse
+    is_submitted: bool
+    submission_id: Optional[int] = None
+    status: Optional[SubmissionState] = None
+    grade: Optional[float] = None
+    submitted_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AssignmentFullReportResponse(BaseModel):
+    assignment_id: int
+    title: str
+    total_enrolled: int
+    submitted_count: int
+    graded_count: int
+    students: list[StudentSubmissionReport]
 
     model_config = ConfigDict(from_attributes=True)

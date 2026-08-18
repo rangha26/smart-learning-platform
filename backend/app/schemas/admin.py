@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
 from datetime import datetime
 from app.models import UserRole, UserStatus
 
@@ -15,3 +16,10 @@ class UserAdminResponse(BaseModel):
 
 class UserStatusUpdateRequest(BaseModel):
     status: UserStatus
+
+class UserListAdminResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[UserAdminResponse]
+
