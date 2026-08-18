@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Bot,
   Check,
@@ -18,6 +19,13 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '@/context/useAuth'
+import { aiChatService } from '@/services/aiChatService'
+
+// Khớp /teacher/class/:id hoặc /student/class/:id để lấy ngữ cảnh lớp học hiện tại
+function getClassIdFromPath(pathname) {
+  const match = pathname.match(/\/class\/(\d+)/)
+  return match ? match[1] : null
+}
 
 const SUGGESTED_PROMPTS = [
   '💡 Làm sao để nộp bài tập và xem điểm?',
@@ -26,8 +34,10 @@ const SUGGESTED_PROMPTS = [
   '❓ Cách liên hệ và trao đổi với giảng viên',
 ]
 
-// Intelligent knowledge base for educational responses
-function getAIResponse(userMessage, userName = 'bạn', userRole = 'STUDENT') {
+// Hướng dẫn nhanh dùng khi KHÔNG có ngữ cảnh lớp học cụ thể (không phải AI thật,
+// chỉ trả lời được các câu hỏi thao tác chung trên nền tảng). Khi đang mở một lớp
+// học cụ thể, widget sẽ gọi API RAG thật (xem handleSendMessage) thay vì hàm này.
+function getGeneralHelpResponse(userMessage, userName = 'bạn') {
   const q = userMessage.toLowerCase()
 
   if (q.includes('nộp bài') || q.includes('submit') || q.includes('turn in') || q.includes('hạn nộp')) {
@@ -50,8 +60,8 @@ function getAIResponse(userMessage, userName = 'bạn', userRole = 'STUDENT') {
     return `Xin chào **${userName}**! 👋\n\nTôi là **AI Learning Assistant** của nền tảng Smart Learning. Tôi có thể hỗ trợ bạn:\n- Giải đáp câu hỏi và tóm tắt kiến thức bài học\n- Hướng dẫn nộp bài tập, tra cứu điểm số và phản hồi\n- Gợi ý cấu trúc giải thuật, cú pháp lập trình và thiết kế hệ thống\n\nBạn cần tôi hỗ trợ chủ đề gì hôm nay?`
   }
 
-  // General smart educational response
-  return `Cảm ơn câu hỏi của bạn về: **"${userMessage}"**.\n\nTheo tài liệu học tập của hệ thống:\n- **Khái niệm cốt lõi:** Đây là một phần quan trọng trong chương trình học giúp bạn nắm vững kiến thức nền tảng và áp dụng vào bài tập thực hành.\n- **Lời khuyên thực hành:** Bạn nên thử nghiệm trực tiếp trên môi trường code/lab, xem lại các slide bài giảng trong lớp và thảo luận thêm với các bạn cùng lớp trên Bảng tin.\n\n*Nếu bạn cần giải thích chi tiết hơn hoặc có thắc mắc về bài tập cụ thể, hãy cho tôi biết nhé!*`
+  // Không khớp câu hỏi nào ở chế độ chung - nói thật thay vì bịa câu trả lời
+  return `Tôi chưa thể trả lời chính xác câu hỏi này ở chế độ hỗ trợ chung.\n\nHãy mở một **lớp học cụ thể** rồi hỏi lại - lúc đó tôi sẽ trả lời dựa trên đúng tài liệu và bài đăng của lớp đó thay vì chỉ hướng dẫn thao tác chung.`
 }
 
 function formatChatTime(date) {
@@ -63,6 +73,9 @@ function formatChatTime(date) {
 
 export function AIChatbotWidget() {
   const { user } = useAuth()
+  const location = useLocation()
+  const classId = useMemo(() => getClassIdFromPath(location.pathname), [location.pathname])
+
   const [isOpen, setIsOpen] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [inputMessage, setInputMessage] = useState('')
@@ -92,6 +105,22 @@ export function AIChatbotWidget() {
     }
   }, [isOpen, messages, isTyping])
 
+  // Nhắc người dùng đổi chế độ khi họ điều hướng vào/ra khỏi một lớp học cụ thể
+  const prevClassIdRef = useRef(classId)
+  useEffect(() => {
+    if (prevClassIdRef.current === classId) return
+    prevClassIdRef.current = classId
+    if (!isOpen) return
+
+    const text = classId
+      ? 'Bạn đang ở trong một lớp học - từ giờ tôi sẽ trả lời dựa trên tài liệu và bài đăng của lớp này.'
+      : 'Bạn đã rời khỏi trang lớp học - tôi tạm chuyển về chế độ hỗ trợ chung (không còn đọc tài liệu lớp học).'
+    setMessages((prev) => [
+      ...prev,
+      { id: `mode-${Date.now()}`, sender: 'ai', text, timestamp: new Date().toISOString() },
+    ])
+  }, [classId, isOpen])
+
   const handleSendMessage = async (textToSend) => {
     const text = (textToSend || inputMessage).trim()
     if (!text || isTyping) return
@@ -107,24 +136,31 @@ export function AIChatbotWidget() {
     setInputMessage('')
     setIsTyping(true)
 
-    // Simulate AI thinking and typing response smoothly
-    setTimeout(() => {
-      const aiReplyText = getAIResponse(
-        text,
-        user?.full_name || 'bạn',
-        user?.role || 'STUDENT'
-      )
+    try {
+      const aiReplyText = classId
+        ? await aiChatService.sendMessage(classId, text)
+        : getGeneralHelpResponse(text, user?.full_name || 'bạn')
 
       const aiMsg = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: aiReplyText,
+        text: aiReplyText || 'Xin lỗi, tôi chưa có câu trả lời cho việc này.',
         timestamp: new Date().toISOString(),
       }
-
       setMessages((prev) => [...prev, aiMsg])
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-error-${Date.now()}`,
+          sender: 'ai',
+          text: err.message || 'Đã có lỗi xảy ra, vui lòng thử lại sau.',
+          timestamp: new Date().toISOString(),
+        },
+      ])
+    } finally {
       setIsTyping(false)
-    }, 900)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -182,7 +218,7 @@ export function AIChatbotWidget() {
                 </div>
                 <p className="text-[11px] text-white/80 flex items-center gap-1">
                   <Sparkles className="size-3" />
-                  Sẵn sàng giải đáp 24/7
+                  {classId ? 'Đang đọc tài liệu lớp học này' : 'Chế độ hỗ trợ chung'}
                 </p>
               </div>
             </div>
