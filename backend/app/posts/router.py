@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -15,6 +15,7 @@ from app.schemas import (
 from fastapi import File, Form, UploadFile
 from typing import Optional
 from app.core.supabase import upload_file_to_supabase
+from app.ai_chat.services.background_tasks import embed_post_in_background
 
 router = APIRouter(tags=["Posts"])
 
@@ -83,6 +84,7 @@ def _get_post_or_404(db: Session, post_id: int) -> Post:
 )
 async def create_post(
     class_id: int,
+    background_tasks: BackgroundTasks,
     content: str = Form(""),
     files: Optional[list[UploadFile]] = File(None),
     db: Session = Depends(get_db),
@@ -101,6 +103,8 @@ async def create_post(
     db.refresh(post)
 
     # Handle attachments
+    file_urls_for_ai = []
+    file_names_for_ai = []
     if files:
         for f in files:
             file_url = await upload_file_to_supabase(f, folder="posts")
@@ -111,7 +115,19 @@ async def create_post(
                 file_type=f.content_type
             )
             db.add(attachment)
+            file_urls_for_ai.append(file_url)
+            file_names_for_ai.append(f.filename)
         db.commit()
+
+    # Ném tác vụ AI nhúng tài liệu vào Background để không chặn API
+    background_tasks.add_task(
+        embed_post_in_background,
+        class_id=class_id,
+        post_id=post.id,
+        content=post.content,
+        file_urls=file_urls_for_ai,
+        file_names=file_names_for_ai
+    )
 
     return _post_response(post, [], getattr(post, "attachments", []))
 

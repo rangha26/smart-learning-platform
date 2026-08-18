@@ -1,127 +1,59 @@
-# Smart Learning Platform - Database & Architecture 🎓
+# Smart Learning Platform 🎓
 
-Tài liệu thiết kế Cơ sở Dữ liệu (Database Schema) và Kiến trúc Backend cho dự án **Smart Learning Platform** (Hệ thống Quản lý Học tập Trực tuyến).
-
----
+Hệ thống Quản lý Học tập Trực tuyến (Smart Learning Platform) tích hợp Trợ lý ảo AI (RAG) giúp học sinh tra cứu bài giảng và tương tác thông minh.
 
 ## 🛠️ Công nghệ sử dụng
 
-- **Database**: PostgreSQL 15/16.
-- **ORM & Models**: SQLAlchemy 2.0 (Python).
-- **Migration Tool**: Alembic (Quản lý phiên bản Database).
-- **Backend Framework**: FastAPI + Uvicorn.
+- **Frontend**: React + Vite.
+- **Backend**: FastAPI (Python) + Background Tasks.
+- **Database**: PostgreSQL 16 (tích hợp extension `pgvector` để lưu trữ Vector).
+- **Cache**: Redis.
+- **Trợ lý AI**: Google Gemini (`google-genai` SDK) với model `gemini-embedding-2`.
+- **Lưu trữ Tệp**: Supabase Storage.
 - **Containerization**: Docker & Docker Compose.
 
 ---
 
-## 🗄️ Cấu trúc Cơ sở Dữ liệu (Database Schema)
+## 🚀 Hướng dẫn Khởi chạy Toàn bộ Dự án
 
-Hệ thống bao gồm **8 bảng dữ liệu (Entities)** và **4 kiểu liệt kê (Enums)** được liên kết chặt chẽ:
+Dự án được cấu hình sẵn để khởi chạy cực kỳ đơn giản thông qua `npm` và `docker-compose`.
 
-### 1. Danh sách các Enum Types
-- `user_role`: `ADMIN`, `INSTRUCTOR`, `STUDENT`.
-- `user_status`: `ACTIVE`, `INACTIVE`.
-- `class_status`: `ACTIVE`, `ARCHIVED`.
-- `submission_state`: `ON_TIME`, `LATE`.
-
-### 2. Danh sách các Bảng Dữ liệu (Tables)
-1. **`users`**: Quản lý người dùng (`email`, `hashed_password`, `full_name`, `role`, `status`).
-2. **`classes`**: Thông tin lớp học (`title`, `subject`, `description`, `join_code`, `instructor_id`, `status`).
-3. **`class_enrollments`**: Danh sách học sinh tham gia lớp học (Ràng buộc duy nhất `uq_class_student`).
-4. **`posts`**: Bài đăng / Thông báo trong lớp học (`class_id`, `author_id`, `content`).
-5. **`attachments`**: Tệp đính kèm bài đăng (`post_id`, `file_url`, `file_type`).
-6. **`comments`**: Bình luận bài đăng (`post_id`, `user_id`, `content`).
-7. **`assignments`**: Bài tập về nhà (`class_id`, `title`, `due_date`, `max_score`, `file_url`).
-8. **`submissions`**: Bài nộp của học sinh (`assignment_id`, `student_id`, `file_url`, `status`, `grade`, `feedback`, ràng buộc duy nhất `uq_assignment_student`).
-
----
-
-## 📊 Sơ đồ Mối quan hệ giữa các Bảng (ERD)
-
-```mermaid
-erDiagram
-    users ||--o{ classes : "tạo / giảng dạy (1-N)"
-    users ||--o{ class_enrollments : "đăng ký tham gia (1-N)"
-    users ||--o{ submissions : "nộp bài tập (1-N)"
-    
-    classes ||--o{ class_enrollments : "danh sách học sinh (Cascade)"
-    classes ||--o{ posts : "bài đăng thông báo (Cascade)"
-    classes ||--o{ assignments : "bài tập về nhà (Cascade)"
-    
-    posts ||--o{ attachments : "tệp đính kèm (Cascade)"
-    posts ||--o{ comments : "bình luận (Cascade)"
-    users ||--o{ comments : "người viết bình luận"
-    
-    assignments ||--o{ submissions : "bài nộp của học sinh (Cascade)"
-```
-
----
-
-## 📁 Cấu trúc Thư mục Dự án
-
-```text
-smart-learning-platform/
-├── docker-compose.yml        # Cấu hình containerization cho toàn bộ ứng dụng
-├── .env.example              # File biến môi trường mẫu
-├── .env                      # File biến môi trường thực tế (được gitignore)
-├── README.md                 # Tài liệu thiết kế Database
-└── backend/
-    ├── app/
-    │   ├── main.py           # Entrypoint khởi tạo ứng dụng FastAPI
-    │   ├── db.py             # Cấu hình kết nối PostgreSQL Engine & Session
-    │   ├── models.py         # Khai báo SQLAlchemy Models & Enums
-    │   └── seed.py           # Script khởi tạo dữ liệu mẫu (Seed Data)
-    ├── alembic/              # Thư mục quản lý Migrations (Alembic)
-    │   ├── env.py            # Cấu hình nạp DB URL & Metadata cho Alembic
-    │   └── versions/         # Chứa các file lưu vết thay đổi cấu trúc DB
-    ├── Dockerfile            # Cấu hình Docker image cho Backend
-    ├── entrypoint.sh         # Script tự động nâng cấp Migration & Seed Data khi start container
-    └── requirements.txt      # Thư viện Python phụ thuộc
-```
-
----
-
-## 🚀 Hướng dẫn Khởi chạy & Kiểm tra Database
-
-### 1. Thiết lập biến môi trường
-Tạo file `.env` từ file mẫu `.env.example`:
-
+### Bước 1: Thiết lập biến môi trường
+Tạo file `.env` từ `.env.example` tại thư mục gốc:
 ```bash
 cp .env.example .env
 ```
+👉 *Lưu ý: Bạn cần điền đầy đủ `GOOGLE_API_KEY` và thông tin `SUPABASE` vào file `.env` để tính năng AI và Upload File hoạt động.*
 
-### 2. Chạy ứng dụng bằng Docker Compose
-Mở Docker Desktop và chạy lệnh:
-
+### Bước 2: Khởi chạy dự án (1-Click)
+Tại thư mục gốc, dự án đã được cài sẵn các lệnh trong `package.json`. Hãy chạy:
 ```bash
-docker compose up --build
+npm run start
 ```
+Lệnh này sẽ tự động:
+1. Tải và build các Docker Image (`db`, `redis`, `backend`, `frontend`).
+2. Khởi chạy Database PostgreSQL với `pgvector/pgvector:pg16`.
+3. Tự động chạy Alembic Migration tạo bảng và nạp dữ liệu mẫu (Seed).
+4. Mở Backend API tại `http://localhost:8000`.
+5. Mở Website Frontend tại `http://localhost:5173`.
 
-Docker sẽ tự động:
-- Khởi chạy PostgreSQL Container (`port 5432`).
-- Tự động chạy Alembic Migration tạo 8 bảng dữ liệu.
-- Tự động chạy script `seed.py` nạp dữ liệu mẫu vào Database.
+### Các lệnh quản lý tiện ích khác (`npm run`)
 
-### 3. Kiểm tra dữ liệu trong Database
-Truy cập container PostgreSQL để xem danh sách các bảng đã tạo:
-
-```bash
-docker exec -it smart_learning_db psql -U classroom -d classroom_db -c "\dt"
-```
+- `npm run start`: Build và khởi động toàn bộ dự án bằng Docker.
+- `npm run stop`: Dừng và tắt toàn bộ các container.
+- `npm run logs`: Xem màn hình log thời gian thực của toàn bộ hệ thống.
+- `npm run dev:frontend`: Chạy độc lập Frontend ở chế độ Dev (nếu bạn muốn code Frontend bên ngoài Docker).
 
 ---
 
-## 🔄 Quy trình Nâng cấp / Thay đổi Cấu trúc Database (Alembic)
+## 🤖 Luồng Hoạt động Trợ lý AI (RAG System)
+> Xem chi tiết tài liệu kỹ thuật AI tại: [backend/app/ai_chat/README.md](backend/app/ai_chat/README.md)
 
-Nếu bạn thay đổi hoặc bổ sung thuộc tính trong [backend/app/models.py](backend/app/models.py):
+Hệ thống sử dụng **Google Gemini** và **pgvector** để âm thầm cắt (chunk) tài liệu ngay khi giáo viên đăng bài, lưu các mảng vector vào database, sau đó cho phép học sinh đặt câu hỏi trực tiếp trên từng bài đăng/tài liệu bằng AI một cách siêu tốc.
 
-1. **Tạo bản migration mới**:
-   ```bash
-   cd backend
-   alembic revision --autogenerate -m "Mô tả thay đổi"
-   ```
+---
 
-2. **Cập nhật thay đổi vào Database**:
-   ```bash
-   alembic upgrade head
-   ```
+## 🗄️ Cấu trúc Cơ sở Dữ liệu & Kiến trúc Backend
+> Xem chi tiết Database Schema (ERD) và cách chạy Migration tại: [backend/README.md](backend/README.md)
+
+Hệ thống bao gồm các bảng cốt lõi: `users`, `classes`, `posts`, `assignments`, `submissions`, `comments`, `attachments` và đặc biệt là `document_chunks` (lưu trữ vector 768 chiều phục vụ AI).

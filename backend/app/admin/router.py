@@ -4,8 +4,8 @@ from sqlalchemy import or_
 from app.db import get_db
 from app.models import User, UserRole, UserStatus
 from app.auth.dependencies import require_roles
-from app.core import NotFoundException, BadRequestException
-from app.schemas.admin import UserAdminResponse, UserStatusUpdateRequest
+from app.core import NotFoundException, BadRequestException, revoke_all_user_tokens
+from app.schemas.admin import UserAdminResponse, UserStatusUpdateRequest, UserListAdminResponse
 from typing import List, Optional
 
 router = APIRouter(
@@ -13,9 +13,9 @@ router = APIRouter(
     tags=["Admin User Management"]
 )
 
-@router.get("", response_model=List[UserAdminResponse], summary="Lấy danh sách người dùng với phân trang và lọc")
+@router.get("", response_model=UserListAdminResponse, summary="Lấy danh sách người dùng với phân trang và lọc")
 
-def list_users(search: Optional[str] = Query(None, description="Từ khóa tìm kiếm (email hoặc tên đầy đủ)"), role: Optional[UserRole] = None, db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
+def list_users(search: Optional[str] = Query(None, description="Từ khóa tìm kiếm (email hoặc tên đầy đủ)"), role: Optional[UserRole] = None, page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
     """
     Lấy danh sách người dùng với phân trang và lọc.
     Chỉ admin mới có quyền truy cập.
@@ -28,9 +28,15 @@ def list_users(search: Optional[str] = Query(None, description="Từ khóa tìm 
     if role:
         query = query.filter(User.role == role)
 
-    users = query.order_by(User.created_at.desc()).all()
+    total_count = query.count()
+    users = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return users
+    return {
+        "total": total_count,
+        "page": page,
+        "page_size": page_size,
+        "items": users
+    }
 
 @router.patch("/{user_id}/status", response_model=UserAdminResponse, summary="Cập nhật trạng thái người dùng")
 def update_user_status(user_id: int, status_update: UserStatusUpdateRequest, db: Session = Depends(get_db), current_admin: User = Depends(require_roles(UserRole.ADMIN))):
@@ -47,6 +53,10 @@ def update_user_status(user_id: int, status_update: UserStatusUpdateRequest, db:
         raise NotFoundException(message="Người dùng không tồn tại.")
 
     user.status = status_update.status
+
+    if status_update.status == UserStatus.INACTIVE:
+        revoke_all_user_tokens(user.id)
+    
     db.commit()
     db.refresh(user)
 
