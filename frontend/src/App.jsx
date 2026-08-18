@@ -1,10 +1,13 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { getRoleHomePath } from '@/components/auth/rolePaths'
-import { AIChatbotWidget } from '@/components/ui/AIChatbotWidget'
 import { AuthProvider } from '@/context/AuthContext'
 import { useAuth } from '@/context/useAuth'
+
+// Chỉ tải widget khi thực sự cần (sau khi đăng nhập) - tránh nằm trong bundle chính
+const AIChatbotWidget = lazy(() => import('@/components/ui/AIChatbotWidget'))
 
 // Layouts
 import { AdminLayout } from '@/layouts/AdminLayout'
@@ -95,12 +98,22 @@ function AppRoutes() {
   )
 }
 
+function AuthenticatedChatbot() {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return null
+  return (
+    <Suspense fallback={null}>
+      <AIChatbotWidget />
+    </Suspense>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
-        <AIChatbotWidget />
+        <AuthenticatedChatbot />
       </AuthProvider>
     </BrowserRouter>
   )
