@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET: str = "smart-learning-bucket"
 
+    # Google Gemini AI Configs
+    GOOGLE_API_KEY: str = ""
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

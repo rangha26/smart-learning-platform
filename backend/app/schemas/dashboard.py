@@ -15,6 +15,8 @@ class AdminDashboardResponse(BaseModel):
     total_assignments: int
     total_submissions: int
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class TeacherClassSummary(BaseModel):
     id: int
@@ -51,3 +53,10 @@ class StudentDashboardResponse(BaseModel):
     total_assignments: int
     overall_progress: float
     upcoming_assignments: list[UpcomingAssignmentSummary]
+
+class TodoItem(BaseModel):
+    assignment_id: int
+    title: str
+    class_title: str
+    due_date: datetime
+    status: str

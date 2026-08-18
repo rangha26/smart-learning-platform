@@ -57,7 +57,9 @@ alembic upgrade head
 ```
 
 Lệnh `upgrade head` sẽ tạo toàn bộ bảng (users, classes, class_enrollments, posts,
-attachments, comments, assignments, submissions) trong Postgres đang chạy trong Docker.
+attachments, comments, assignments, submissions, và **document_chunks**) trong Postgres đang chạy trong Docker.
+
+*Lưu ý: Bảng `document_chunks` sử dụng kiểu dữ liệu `VECTOR(768)` nên bắt buộc image PostgreSQL trong Docker phải là `pgvector/pgvector:pg16`.*
 
 ## 5. Kiểm tra kết quả
 
