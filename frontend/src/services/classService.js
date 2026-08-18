@@ -100,4 +100,19 @@ export const classService = {
       throwServiceError(error, 'Khong the tai thong tin lop hoc.')
     }
   },
+
+  /**
+   * Lấy danh sách học viên đã tham gia lớp học
+   */
+  async getClassStudents(classId) {
+    try {
+      const response = await apiClient.get(`/classes/${classId}/students`)
+      return response.data
+    } catch (error) {
+      if (!error.response && import.meta.env.DEV) {
+        return []
+      }
+      throwServiceError(error, 'Không thể tải danh sách học viên.')
+    }
+  },
 }

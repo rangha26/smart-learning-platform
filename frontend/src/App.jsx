@@ -1,9 +1,13 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { getRoleHomePath } from '@/components/auth/rolePaths'
 import { AuthProvider } from '@/context/AuthContext'
 import { useAuth } from '@/context/useAuth'
+
+// Chỉ tải widget khi thực sự cần (sau khi đăng nhập) - tránh nằm trong bundle chính
+const AIChatbotWidget = lazy(() => import('@/components/ui/AIChatbotWidget'))
 
 // Layouts
 import { AdminLayout } from '@/layouts/AdminLayout'
@@ -19,6 +23,7 @@ import { AdminUserManagementPage } from '@/pages/admin/UserManagement'
 // Teacher Pages
 import { TeacherAssignmentsPage } from '@/pages/teacher/Assignments'
 import { TeacherDashboardPage } from '@/pages/teacher/Dashboard'
+import { TeacherGradingPage } from '@/pages/teacher/Grading'
 import { TeacherMyCoursesPage } from '@/pages/teacher/MyCourses'
 import { TeacherStudentsPage } from '@/pages/teacher/Students'
 
@@ -72,6 +77,8 @@ function AppRoutes() {
           <Route element={<TeacherAssignmentsPage />} path="/teacher/assignments" />
           <Route element={<TeacherStudentsPage />} path="/teacher/students" />
           <Route element={<ClassDetailPage />} path="/teacher/class/:id" />
+          <Route element={<TeacherGradingPage />} path="/teacher/assignments/:assignmentId/grading" />
+          <Route element={<TeacherGradingPage />} path="/teacher/class/:classId/assignments/:assignmentId/grading" />
         </Route>
       </Route>
 
@@ -91,11 +98,22 @@ function AppRoutes() {
   )
 }
 
+function AuthenticatedChatbot() {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return null
+  return (
+    <Suspense fallback={null}>
+      <AIChatbotWidget />
+    </Suspense>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
+        <AuthenticatedChatbot />
       </AuthProvider>
     </BrowserRouter>
   )

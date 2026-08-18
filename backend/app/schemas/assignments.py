@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from datetime import datetime, timezone
 from typing import Optional
 from app.models import SubmissionState
 
@@ -9,6 +9,14 @@ class AssignmentCreateRequest(BaseModel):
     due_date: datetime
     max_score: float = Field(default=10.0, ge=0)
     file_url: Optional[str] = None
+
+    @field_validator("due_date")
+    @classmethod
+    def due_date_must_be_in_future(cls, value: datetime) -> datetime:
+        reference = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if reference <= datetime.now(timezone.utc):
+            raise ValueError("Hạn nộp phải là một thời điểm trong tương lai.")
+        return value
 
 class AssignmentResponse(BaseModel):
     id: int

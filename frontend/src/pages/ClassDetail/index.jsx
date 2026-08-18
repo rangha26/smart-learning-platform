@@ -1,24 +1,36 @@
 import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
+  Award,
   BookOpen,
+  Calendar,
+  CheckCircle2,
   CheckSquare,
   ChevronRight,
   ClipboardList,
   Clock,
   Crown,
+  Download,
+  ExternalLink,
   GraduationCap,
   Key,
   Loader2,
   Paperclip,
+  Plus,
+  Search,
   Send,
+  Sparkles,
   Star,
   Users,
   X,
   FileText,
+  AlertTriangle,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { AssignmentEditorModal } from '@/components/classes/AssignmentEditorModal'
+import { StudentAssignmentDetailModal } from '@/components/classes/StudentAssignmentDetailModal'
+import { assignmentService } from '@/services/assignmentService'
 import { classService } from '@/services/classService'
 import { postService } from '@/services/postService'
 import { useAuth } from '@/context/useAuth'
@@ -476,16 +488,280 @@ function BangTinTab({ classId, canPost, currentUser }) {
 }
 
 // ─── Tab: Bài tập ─────────────────────────────────────────────────────────────
-function BaiTapTab() {
+function formatAssignmentDueDate(isoString) {
+  try {
+    return new Date(isoString).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return isoString
+  }
+}
+
+function getAssignmentDueStatus(isoString) {
+  try {
+    const due = new Date(isoString)
+    const now = new Date()
+    const diffMs = due - now
+    if (diffMs < 0) {
+      return { status: 'overdue', label: 'Đã hết hạn', colorClass: 'bg-rose-500/10 text-rose-600 border-rose-200' }
+    }
+    const diffHours = diffMs / (1000 * 60 * 60)
+    if (diffHours <= 24) {
+      return { status: 'soon', label: 'Sắp hết hạn (dưới 24h)', colorClass: 'bg-amber-500/10 text-amber-700 border-amber-200' }
+    }
+    return { status: 'active', label: 'Đang mở', colorClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' }
+  } catch {
+    return { status: 'unknown', label: 'Đang mở', colorClass: 'bg-muted text-muted-foreground border-border' }
+  }
+}
+
+function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
+  const navigate = useNavigate()
+  const [assignments, setAssignments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedAssignmentForDetail, setSelectedAssignmentForDetail] = useState(null)
+  const [search, setSearch] = useState('')
+
+  const loadAssignments = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await assignmentService.getClassAssignments(classId)
+      setAssignments(data || [])
+    } catch (err) {
+      setError(err.message || 'Không thể tải danh sách bài tập.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAssignments()
+  }, [classId])
+
+  const handleCreateSuccess = (newAssignment) => {
+    setAssignments((prev) => [newAssignment, ...prev])
+  }
+
+  const filteredAssignments = assignments.filter((a) =>
+    a.title.toLowerCase().includes(search.toLowerCase()) ||
+    (a.description && a.description.toLowerCase().includes(search.toLowerCase()))
+  )
+
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed bg-card py-16 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-indigo-50">
-        <ClipboardList className="size-7 text-indigo-500" />
+    <div className="space-y-6">
+      {/* Action Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Danh sách bài tập</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Quản lý đề bài, cấu hình hạn nộp và theo dõi tiến độ nộp bài.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm kiếm bài tập..."
+              className="rounded-xl border border-input bg-background pl-9 pr-3 py-2 text-xs w-48 sm:w-60 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            />
+          </div>
+
+          {canManage && (
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 text-xs font-semibold px-4 py-2"
+            >
+              <Plus className="mr-1.5 size-4" />
+              Tạo bài tập mới
+            </Button>
+          )}
+        </div>
       </div>
-      <div>
-        <p className="font-semibold text-foreground">Chưa có bài tập nào</p>
-        <p className="mt-1 text-sm text-muted-foreground">Bài tập do giảng viên tạo sẽ xuất hiện ở đây.</p>
-      </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-xs font-medium text-destructive">
+          {error}
+        </div>
+      )}
+
+      {/* Assignments List */}
+      {loading ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
+          <Loader2 className="size-6 animate-spin text-indigo-500" />
+          <span>Đang tải danh sách bài tập...</span>
+        </div>
+      ) : filteredAssignments.length === 0 ? (
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card py-16 text-center shadow-xs">
+          <div className="flex size-14 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/50">
+            <ClipboardList className="size-7 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <p className="font-bold text-foreground text-base">
+              {search ? 'Không tìm thấy bài tập phù hợp' : 'Chưa có bài tập nào trong lớp này'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+              {canManage
+                ? 'Hãy bắt đầu soạn thảo đề bài đầu tiên để giao bài tập cho học viên.'
+                : 'Bài tập do giảng viên giao sẽ xuất hiện tại đây.'}
+            </p>
+          </div>
+          {canManage && !search && (
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="mt-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 text-xs font-semibold"
+            >
+              <Plus className="mr-1.5 size-4" />
+              Soạn đề bài ngay
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredAssignments.map((assignment) => {
+            const dueInfo = getAssignmentDueStatus(assignment.due_date)
+            return (
+              <article
+                key={assignment.id}
+                className="group relative rounded-2xl border border-border/80 bg-card p-5 shadow-xs hover:border-indigo-200 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col gap-3">
+                  {/* Top Bar */}
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 group-hover:scale-105 transition-transform">
+                        <ClipboardList className="size-5" />
+                      </div>
+                      <div>
+                        <h3
+                          onClick={() => setSelectedAssignmentForDetail(assignment)}
+                          className="text-base font-bold text-foreground group-hover:text-indigo-600 transition-colors cursor-pointer"
+                        >
+                          {assignment.title}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3.5" />
+                            Hạn nộp: <strong className="text-foreground">{formatAssignmentDueDate(assignment.due_date)}</strong>
+                          </span>
+                          <span className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400">
+                            <Award className="size-3.5" />
+                            Thang điểm: {assignment.max_score} điểm
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Badge & Action Button */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${dueInfo.colorClass}`}
+                      >
+                        {dueInfo.status === 'overdue' ? (
+                          <AlertTriangle className="size-3.5" />
+                        ) : (
+                          <CheckCircle2 className="size-3.5" />
+                        )}
+                        {dueInfo.label}
+                      </span>
+
+                      {canManage ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedAssignmentForDetail(assignment)}
+                            className="rounded-xl text-xs font-semibold px-2.5 py-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            Xem đề bài
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              navigate(
+                                `/teacher/class/${classId}/assignments/${assignment.id}/grading`
+                              )
+                            }
+                            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 shadow-xs"
+                          >
+                            <Award className="mr-1 size-3.5" />
+                            Chấm bài
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => setSelectedAssignmentForDetail(assignment)}
+                          className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs text-xs font-semibold px-3 py-1.5"
+                        >
+                          Xem đề & Nộp bài
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {assignment.description && (
+                    <div className="mt-1 rounded-xl bg-muted/30 p-3.5 text-xs text-foreground leading-relaxed whitespace-pre-line">
+                      {assignment.description}
+                    </div>
+                  )}
+
+                  {/* Attachment File */}
+                  {assignment.file_url && (
+                    <div className="mt-1 flex items-center justify-between rounded-xl border border-border/80 bg-muted/20 px-3.5 py-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <FileText className="size-4 text-indigo-600 shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate">
+                          Tệp đề bài đính kèm
+                        </span>
+                      </div>
+                      <a
+                        href={assignment.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      >
+                        <Download className="size-3.5" />
+                        Tải đề bài
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Assignment Editor Modal (Giảng viên) */}
+      <AssignmentEditorModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleCreateSuccess}
+        initialClassId={classId}
+        initialClassName={classTitle}
+      />
+
+      {/* Student Assignment Detail & Submission Modal (Sinh viên / Giảng viên) */}
+      <StudentAssignmentDetailModal
+        isOpen={!!selectedAssignmentForDetail}
+        onClose={() => setSelectedAssignmentForDetail(null)}
+        assignment={selectedAssignmentForDetail}
+        isInstructor={canManage}
+      />
     </div>
   )
 }
@@ -750,7 +1026,14 @@ export function ClassDetailPage() {
         {activeTab === 'bangtin' && (
           <BangTinTab classId={id} canPost={canPost} currentUser={user} />
         )}
-        {activeTab === 'baitap' && <BaiTapTab />}
+        {activeTab === 'baitap' && (
+          <BaiTapTab
+            classId={id}
+            classTitle={classInfo?.title || ''}
+            canManage={canPost}
+            currentUser={user}
+          />
+        )}
         {activeTab === 'moinguoi' && <MoiNguoiTab classInfo={classInfo} />}
       </div>
     </div>
