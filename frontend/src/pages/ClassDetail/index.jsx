@@ -521,6 +521,7 @@ function getAssignmentDueStatus(isoString) {
 }
 
 function BaiTapTab({ classId, classTitle, canManage, currentUser }) {
+  const navigate = useNavigate()
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

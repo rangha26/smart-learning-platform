@@ -69,7 +69,7 @@ export const adminService = {
             email: 'sv.phamminhd@example.com',
             full_name: 'Phạm Minh Dũng',
             role: 'STUDENT',
-            status: 'BLOCKED',
+            status: 'INACTIVE',
             created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
           },
           {
@@ -97,7 +97,7 @@ export const adminService = {
   /**
    * Cập nhật trạng thái người dùng (Khóa / Mở khóa)
    * @param {number|string} userId
-   * @param {'ACTIVE'|'BLOCKED'} status
+   * @param {'ACTIVE'|'INACTIVE'} status
    */
   async updateUserStatus(userId, status) {
     try {
