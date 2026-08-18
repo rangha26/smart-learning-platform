@@ -1,7 +1,7 @@
 services:
   # 1. PostgreSQL Database Service
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: classroom_db
     restart: unless-stopped
     environment:

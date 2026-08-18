@@ -14,6 +14,8 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
 
 from app.db import Base
 
@@ -196,3 +198,32 @@ class Submission(Base):
 
     assignment: Mapped["Assignment"] = relationship(back_populates="submissions")
     student: Mapped["User"] = relationship(back_populates="submissions")
+
+
+# ---------------------------------------------------------------------
+# 9. document_chunks (for RAG)
+# ---------------------------------------------------------------------
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    
+    # Rất quan trọng để cách ly dữ liệu giữa các lớp học
+    class_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("classes.id", ondelete="CASCADE"))
+    
+    # Phân loại nguồn gốc của chunk này (Ví dụ: 'POST', 'ATTACHMENT', 'ASSIGNMENT')
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # ID của bản ghi gốc (Ví dụ: id của bảng attachments)
+    source_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    
+    # Nội dung đoạn text đã được cắt nhỏ
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # Vector nhúng sinh ra từ Google Gemini (thường là 768 chiều cho models text-embedding)
+    embedding: Mapped[list[float]] = mapped_column(Vector(768))
+    
+    # Siêu dữ liệu thêm (tên file, số trang, người đăng...)
+    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
