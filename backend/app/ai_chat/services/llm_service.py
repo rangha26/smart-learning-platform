@@ -13,9 +13,11 @@ from app.ai_chat.services.vector_store import search_similar_chunks_async
 
 MODEL_MAPPING = {
     "Gemini 3.6 Flash": "gemini-3.6-flash",
-    "Gemini 3.5 Flash Lite": "gemini-3.5-flash",
-    "Gemini 2.5 Flash Lite": "gemini-2.5-flash",
-    "Gemini 3.1 Flash Lite": "gemini-3.1-flash",
+    "Gemini 3.5 Flash Lite": "gemini-3.5-flash-lite",
+    # gemini-2.5-flash-lite bị Google ngừng cấp cho user mới (404 NOT_FOUND,
+    # khuyến nghị chính thức chuyển sang gemini-3.5-flash-lite).
+    "Gemini 2.5 Flash Lite": "gemini-3.5-flash-lite",
+    "Gemini 3.1 Flash Lite": "gemini-3.1-flash-lite",
     "Gemini 3.5 Flash": "gemini-3.5-flash",
     "Gemini 3.7 Flash": "gemini-3.7-flash",
 }
