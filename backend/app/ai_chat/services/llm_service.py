@@ -54,7 +54,7 @@ def get_llm_model(model_name: str) -> ChatGoogleGenerativeAI:
         temperature=0.5 # Nhiệt độ trung bình để có thể sinh ra câu trả lời linh hoạt hơn nếu thiếu ngữ cảnh
     )
 
-async def generate_rag_response_async(db: Session, class_id: int, user_query: str, model_name: str = "Gemini 3.5 Flash Lite") -> str:
+async def generate_rag_response_async(db: Session, class_id: int, user_query: str, model_name: str = "Gemini 3.5 Flash Lite", user_role: str = "STUDENT") -> str:
     """
     Luồng RAG hoàn chỉnh (Retrieval-Augmented Generation) (Async):
     1. Tìm kiếm (Retrieve): Lấy các chunk tài liệu liên quan nhất từ Database.
@@ -76,7 +76,27 @@ async def generate_rag_response_async(db: Session, class_id: int, user_query: st
         context_text = "Không tìm thấy tài liệu nào trong lớp học liên quan đến câu hỏi này."
         
     # 3. Định nghĩa Prompt Template (Dặn dò AI)
-    prompt_template = """
+    if user_role == "INSTRUCTOR":
+        prompt_template = """
+Bạn là một trợ lý giảng dạy AI thông minh của Hệ thống Smart Learning Platform.
+Nhiệm vụ của bạn là hỗ trợ Giảng viên (người đang trò chuyện với bạn) quản lý lớp học và giải đáp các thông tin liên quan đến lớp học.
+
+QUY TẮC NGHIÊM NGẶT:
+1. Ưu tiên CHỈ sử dụng thông tin có trong phần NGỮ CẢNH ĐƯỢC CUNG CẤP để trả lời.
+2. NẾU phần NGỮ CẢNH KHÔNG CÓ thông tin để trả lời, BẠN ĐƯỢC PHÉP sử dụng kiến thức sẵn có của mình để trả lời. TUY NHIÊN, bạn PHẢI BẮT ĐẦU câu trả lời bằng một lời cảnh báo rõ ràng: "⚠️ Dựa vào tài liệu lớp học thì tôi không tìm thấy thông tin này. Tuy nhiên, theo kiến thức chung của tôi thì: ..."
+3. TUYỆT ĐỐI KHÔNG tự bịa đặt, sáng tác các nội dung liên quan đến: Nội quy lớp học, Quy định, Thông báo, Điểm số, Lịch học. Đối với những thông tin đặc thù này, nếu NGỮ CẢNH không đề cập, bạn PHẢI trả lời: "⚠️ Tài liệu lớp học hiện chưa có thông tin về vấn đề này." và không được giải thích thêm.
+4. Trình bày câu trả lời chuyên nghiệp, mạch lạc, tôn trọng, sử dụng bullet points (gạch đầu dòng) nếu cần thiết để giảng viên dễ theo dõi.
+
+NGỮ CẢNH ĐƯỢC CUNG CẤP (Từ tài liệu lớp học):
+{context}
+
+CÂU HỎI CỦA GIẢNG VIÊN:
+{question}
+
+TRẢ LỜI:
+"""
+    else:
+        prompt_template = """
 Bạn là một trợ lý giảng dạy AI thông minh của Hệ thống Smart Learning Platform.
 Nhiệm vụ của bạn là giải đáp thắc mắc của học sinh.
 
@@ -94,6 +114,7 @@ CÂU HỎI CỦA HỌC SINH:
 
 TRẢ LỜI:
 """
+    
     prompt = PromptTemplate.from_template(prompt_template)
     formatted_prompt = prompt.format(context=context_text, question=user_query)
     

@@ -107,6 +107,8 @@ async def create_post(
     file_names_for_ai = []
     if files:
         for f in files:
+            if not f.filename:
+                continue
             file_url = await upload_file_to_supabase(f, folder="posts")
             attachment = Attachment(
                 post_id=post.id,
