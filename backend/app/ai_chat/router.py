@@ -129,7 +129,8 @@ async def chat_with_ai(
             db=db,
             class_id=class_id,
             user_query=request.message,
-            model_name=request.model
+            model_name=request.model,
+            user_role=current_user.role.value
         )
         return {
             "answer": answer

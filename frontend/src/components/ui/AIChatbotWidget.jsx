@@ -20,6 +20,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/useAuth'
 import { aiChatService } from '@/services/aiChatService'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 
 // Khớp /teacher/class/:id hoặc /student/class/:id để lấy ngữ cảnh lớp học hiện tại
 function getClassIdFromPath(pathname) {
@@ -277,11 +282,39 @@ export function AIChatbotWidget() {
                     <div
                       className={`rounded-2xl px-3.5 py-2.5 leading-relaxed shadow-xs ${
                         isAi
-                          ? 'bg-muted/40 border border-border/80 text-foreground whitespace-pre-line'
-                          : 'bg-indigo-600 text-white rounded-tr-xs'
+                          ? 'bg-muted/40 border border-border/80 text-foreground'
+                          : 'bg-indigo-600 text-white rounded-tr-xs whitespace-pre-line'
                       }`}
                     >
-                      {msg.text}
+                      {isAi ? (
+                        <div className="text-[12px] katex-sm">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={{
+                              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                              li: ({node, ...props}) => <li className="" {...props} />,
+                              strong: ({node, ...props}) => <strong className="font-bold text-foreground" {...props} />,
+                              em: ({node, ...props}) => <em className="italic opacity-90" {...props} />,
+                              a: ({node, ...props}) => <a className="text-indigo-600 hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />,
+                              code: ({node, inline, ...props}) => 
+                                inline ? (
+                                  <code className="bg-muted px-1.5 py-0.5 rounded text-[11px] font-mono text-indigo-700" {...props} />
+                                ) : (
+                                  <pre className="bg-muted p-2 rounded-md overflow-x-auto text-[11px] font-mono mb-2">
+                                    <code {...props} />
+                                  </pre>
+                                )
+                            }}
+                          >
+                            {msg.text}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        msg.text
+                      )}
                     </div>
 
                     <div
