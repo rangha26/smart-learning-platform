@@ -1,3 +1,16 @@
+from app.schemas.admin import (
+    UserAdminResponse,
+    UserStatusUpdateRequest,
+)
+from app.schemas.assignments import (
+    AssignmentCreateRequest,
+    AssignmentResponse,
+    SubmissionCreateRequest,
+    SubmissionResponse,
+    GradeSubmissionRequest,
+    AssignmentStatsResponse,
+    AssignmentListResponse,
+)
 from app.schemas.auth import (
     AuthResponse,
     ChangePasswordRequest,
@@ -60,4 +73,13 @@ __all__ = [
     "PostResponse",
     "CommentCreateRequest",
     "CommentResponse",
+    "UserAdminResponse",
+    "UserStatusUpdateRequest",
+    "AssignmentCreateRequest",
+    "AssignmentResponse",
+    "SubmissionCreateRequest",
+    "SubmissionResponse",
+    "GradeSubmissionRequest",
+    "AssignmentStatsResponse",
+    "AssignmentListResponse",
 ]
